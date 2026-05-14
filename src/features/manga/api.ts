@@ -79,7 +79,8 @@ export async function getProgress(mangaId: string): Promise<MangaProgress | null
   return {
     mangaId,
     volumeId: pickString(source, ["volumeId"], ""),
-    pageNumber: pickNumber(source, ["pageNumber", "currentPage", "page"], 1)
+    pageNumber: pickNumber(source, ["pageNumber", "currentPage", "page"], 1),
+    completed: source.completed === true,
   };
 }
 
@@ -107,6 +108,12 @@ export async function getVolumeCompletion(mangaId: string, volumeId: string): Pr
 export async function markVolumeCompleted(mangaId: string, volumeId: string) {
   return apiClient.request(`/manga/${mangaId}/volumes/${volumeId}/complete`, {
     method: "POST",
+  });
+}
+
+export async function resetVolumeCompletion(mangaId: string, volumeId: string) {
+  return apiClient.request(`/manga/${mangaId}/volumes/${volumeId}/complete`, {
+    method: "DELETE",
   });
 }
 

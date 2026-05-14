@@ -27,6 +27,7 @@ export type MangaProgress = {
   mangaId: string;
   volumeId: string;
   pageNumber: number;
+  completed?: boolean;
 };
 
 export type ContinueReadingItem = {
