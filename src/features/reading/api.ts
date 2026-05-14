@@ -1,0 +1,53 @@
+import { apiClient } from "@/lib/apiClient";
+import {
+  pickNumber,
+  pickString,
+  unwrapArray,
+  unwrapObject
+} from "@/lib/adapters";
+import { ContinueReadingItem, ReadingStats } from "@/types/domain";
+
+export async function getContinueReading(): Promise<ContinueReadingItem[]> {
+  const response = await apiClient.request<unknown>("/users/me/continue-reading");
+  return unwrapArray(response).map((entry) => {
+    const source = unwrapObject(entry);
+    return {
+      mangaId: pickString(source, ["mangaId", "id"]),
+      volumeId: pickString(source, ["volumeId"]),
+      pageNumber: pickNumber(source, ["pageNumber", "currentPage", "page"], 1),
+      mangaTitle: pickString(source, ["mangaTitle", "title"])
+    };
+  });
+}
+
+export async function getReadingStats(): Promise<ReadingStats> {
+  const response = await apiClient.request<unknown>("/users/me/reading-stats");
+  const source = unwrapObject(response);
+
+  return {
+    totalSessions: pickNumber(source, ["totalSessions", "sessions"], 0),
+    totalMinutes: pickNumber(source, ["totalMinutes", "minutes"], 0),
+    totalPagesRead: pickNumber(source, ["totalPagesRead", "pagesRead"], 0)
+  };
+}
+
+export async function startReadingSession(payload: {
+  mangaId: string;
+  volumeId: string;
+  pageNumber: number;
+}) {
+  const response = await apiClient.request<unknown>("/reading/sessions/start", {
+    method: "POST",
+    body: payload
+  });
+
+  const source = unwrapObject(response);
+  return pickString(source, ["sessionId", "id"]);
+}
+
+export async function endReadingSession(sessionId: string) {
+  return apiClient.request(`/reading/sessions/${sessionId}/end`, {
+    method: "POST"
+  });
+}
+
