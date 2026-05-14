@@ -5,6 +5,15 @@ import { Loading } from "@/components/Loading";
 import { getContinueReading, getReadingStats } from "@/features/reading/api";
 import { useAuth } from "@/features/auth/AuthContext";
 
+function formatReadingTime(totalSeconds: number): string {
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  const mm = String(m).padStart(2, "0");
+  const ss = String(s).padStart(2, "0");
+  return `${h}:${mm}:${ss}`;
+}
+
 export function HomePage() {
   const { email, role } = useAuth();
 
@@ -56,7 +65,8 @@ export function HomePage() {
           {statsQuery.data && (
             <div className="grid">
               <p>Total sesiones: {statsQuery.data.totalSessions}</p>
-              <p>Total minutos: {statsQuery.data.totalMinutes}</p>
+              <p>Tiempo total de lectura: {formatReadingTime(statsQuery.data.totalSeconds)}</p>
+              <p>Total volúmenes leídos: {statsQuery.data.totalVolumesRead}</p>
               <p>Total páginas leídas: {statsQuery.data.totalPagesRead}</p>
             </div>
           )}

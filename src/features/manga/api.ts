@@ -95,6 +95,21 @@ export async function saveProgress(payload: {
   });
 }
 
+export async function getVolumeCompletion(mangaId: string, volumeId: string): Promise<{ completed: boolean; completedAt: string | null }> {
+  const response = await apiClient.request<unknown>(`/manga/${mangaId}/volumes/${volumeId}/complete`);
+  const source = unwrapObject(response);
+  return {
+    completed: source.completed === true,
+    completedAt: typeof source.completedAt === "string" ? source.completedAt : null,
+  };
+}
+
+export async function markVolumeCompleted(mangaId: string, volumeId: string) {
+  return apiClient.request(`/manga/${mangaId}/volumes/${volumeId}/complete`, {
+    method: "POST",
+  });
+}
+
 export async function createManga(payload: { title: string; description?: string }) {
   return apiClient.request("/manga", {
     method: "POST",

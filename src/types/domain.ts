@@ -39,7 +39,9 @@ export type ContinueReadingItem = {
 export type ReadingStats = {
   totalSessions: number;
   totalMinutes: number;
+  totalSeconds: number;
   totalPagesRead: number;
+  totalVolumesRead: number;
 };
 
 export type Book = {

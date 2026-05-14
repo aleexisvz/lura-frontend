@@ -6,6 +6,8 @@ import { Loading } from "@/components/Loading";
 import {
   getPageImageBlob,
   getPages,
+  getVolumeCompletion,
+  markVolumeCompleted,
   saveProgress
 } from "@/features/manga/api";
 import { endReadingSession, startReadingSession } from "@/features/reading/api";
@@ -31,6 +33,17 @@ export function MangaReaderPage() {
 
   const saveProgressMutation = useMutation({
     mutationFn: saveProgress
+  });
+
+  const completionQuery = useQuery({
+    queryKey: ["volume-completion", mangaId, volumeId],
+    queryFn: () => getVolumeCompletion(mangaId, volumeId),
+    enabled: Boolean(mangaId && volumeId)
+  });
+
+  const markCompletedMutation = useMutation({
+    mutationFn: () => markVolumeCompleted(mangaId, volumeId),
+    onSuccess: () => completionQuery.refetch()
   });
 
   const startSessionMutation = useMutation({
@@ -79,6 +92,9 @@ export function MangaReaderPage() {
       volumeId,
       pageNumber: nextPage
     });
+    if (nextPage >= maxPage && !completionQuery.data?.completed) {
+      markCompletedMutation.mutate();
+    }
     navigate(`/reader/${mangaId}/${volumeId}/${nextPage}`);
   };
 
@@ -111,6 +127,14 @@ export function MangaReaderPage() {
             onClick={() => goToPage(currentPage + 1)}
           >
             Siguiente
+          </button>
+          <button
+            className="secondary-button"
+            type="button"
+            disabled={completionQuery.data?.completed || markCompletedMutation.isPending}
+            onClick={() => markCompletedMutation.mutate()}
+          >
+            {completionQuery.data?.completed ? "✓ Completado" : "Marcar como completado"}
           </button>
           <button
             className="secondary-button"

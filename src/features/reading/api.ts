@@ -27,7 +27,9 @@ export async function getReadingStats(): Promise<ReadingStats> {
   return {
     totalSessions: pickNumber(source, ["totalSessions", "sessions"], 0),
     totalMinutes: pickNumber(source, ["totalMinutes", "minutes"], 0),
-    totalPagesRead: pickNumber(source, ["totalPagesRead", "pagesRead"], 0)
+    totalSeconds: pickNumber(source, ["totalSeconds", "seconds"], 0),
+    totalPagesRead: pickNumber(source, ["totalPagesRead", "pagesRead"], 0),
+    totalVolumesRead: pickNumber(source, ["totalVolumesRead", "volumesRead"], 0)
   };
 }
 
@@ -38,7 +40,7 @@ export async function startReadingSession(payload: {
 }) {
   const response = await apiClient.request<unknown>("/reading/sessions/start", {
     method: "POST",
-    body: payload
+    body: { contentType: "MANGA", contentId: payload.mangaId }
   });
 
   const source = unwrapObject(response);
