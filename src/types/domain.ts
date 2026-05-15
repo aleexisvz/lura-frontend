@@ -6,11 +6,21 @@ export type SessionUser = {
   sub?: string;
 };
 
+export type TagScope = "MANGA" | "BOOK";
+
+export type Tag = {
+  id: string;
+  scope: TagScope;
+  name: string;
+  slug: string;
+};
+
 export type Manga = {
   id: string;
   title: string;
   author?: string | null;
   description?: string;
+  tags: Tag[];
   categories: string[];
   coverUrl: string | null;
 };
@@ -57,6 +67,7 @@ export type Book = {
   title: string;
   author?: string | null;
   description?: string | null;
+  tags: Tag[];
   categories: string[];
   coverUrl: string | null;
 };

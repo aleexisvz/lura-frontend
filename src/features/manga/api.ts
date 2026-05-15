@@ -7,16 +7,38 @@ import {
   unwrapArray,
   unwrapObject,
 } from "@/lib/adapters";
-import { Manga, MangaPage, MangaProgress, Volume } from "@/types/domain";
+import { Manga, MangaPage, MangaProgress, Tag, Volume } from "@/types/domain";
+
+function adaptTags(source: Record<string, unknown>) {
+  const tagsValue = source.tags;
+  if (!Array.isArray(tagsValue)) {
+    return [] as Tag[];
+  }
+
+  return tagsValue
+    .map((tag) => {
+      if (!isRecord(tag)) return null;
+      return {
+        id: pickString(tag, ["id"]),
+        scope: pickString(tag, ["scope"], "MANGA") as Tag["scope"],
+        name: pickString(tag, ["name"]),
+        slug: pickString(tag, ["slug"]),
+      };
+    })
+    .filter((tag): tag is Tag => Boolean(tag?.id && tag?.name));
+}
 
 function adaptManga(value: unknown): Manga {
   const source = unwrapObject(value);
+  const tags = adaptTags(source);
+  const categories = pickStringArray(source, ["categories"]);
   return {
     id: pickString(source, ["id", "mangaId"]),
     title: pickString(source, ["title", "name"], "Untitled manga"),
     author: pickString(source, ["author"]) || null,
     description: pickString(source, ["description", "summary"]),
-    categories: pickStringArray(source, ["categories"]),
+    tags,
+    categories: categories.length > 0 ? categories : tags.map((tag) => tag.name),
     coverUrl: pickString(source, ["coverUrl"]) || null,
   };
 }
@@ -43,14 +65,14 @@ function adaptPage(value: unknown): MangaPage {
 }
 
 type MangaListFilters = {
-  categories?: string[];
+  tagIds?: string[];
 };
 
 export async function getMangaList(filters: MangaListFilters = {}) {
-  const categories = filters.categories?.filter(Boolean) ?? [];
+  const tagIds = filters.tagIds?.filter(Boolean) ?? [];
   const query =
-    categories.length > 0
-      ? `?categories=${encodeURIComponent(categories.join(","))}`
+    tagIds.length > 0
+      ? `?tagIds=${encodeURIComponent(tagIds.join(","))}`
       : "";
   const response = await apiClient.request<unknown>(`/manga${query}`);
   return unwrapArray(response).map(adaptManga);
@@ -130,7 +152,7 @@ export async function resetVolumeCompletion(mangaId: string, volumeId: string) {
   });
 }
 
-export async function createManga(payload: { title: string; author?: string; categories?: string[] }) {
+export async function createManga(payload: { title: string; author?: string; tagIds?: string[] }) {
   return apiClient.request("/manga", {
     method: "POST",
     body: payload,
@@ -141,7 +163,7 @@ export async function updateManga(payload: {
   mangaId: string;
   title?: string;
   author?: string;
-  categories?: string[];
+  tagIds?: string[];
 }) {
   const { mangaId, ...body } = payload;
   return apiClient.request(`/manga/${mangaId}`, {

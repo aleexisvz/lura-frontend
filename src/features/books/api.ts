@@ -1,28 +1,50 @@
 import { apiClient } from "@/lib/apiClient";
-import { pickString, pickStringArray, unwrapArray, unwrapObject } from "@/lib/adapters";
-import { Book } from "@/types/domain";
+import { isRecord, pickString, pickStringArray, unwrapArray, unwrapObject } from "@/lib/adapters";
+import { Book, Tag } from "@/types/domain";
+
+function adaptTags(source: Record<string, unknown>) {
+  const tagsValue = source.tags;
+  if (!Array.isArray(tagsValue)) {
+    return [] as Tag[];
+  }
+
+  return tagsValue
+    .map((tag) => {
+      if (!isRecord(tag)) return null;
+      return {
+        id: pickString(tag, ["id"]),
+        scope: pickString(tag, ["scope"], "BOOK") as Tag["scope"],
+        name: pickString(tag, ["name"]),
+        slug: pickString(tag, ["slug"]),
+      };
+    })
+    .filter((tag): tag is Tag => Boolean(tag?.id && tag?.name));
+}
 
 function adaptBook(value: unknown): Book {
   const source = unwrapObject(value);
+  const tags = adaptTags(source);
+  const categories = pickStringArray(source, ["categories"]);
   return {
     id: pickString(source, ["id", "bookId"]),
     title: pickString(source, ["title", "name"], "Untitled book"),
     author: pickString(source, ["author"]) || null,
     description: pickString(source, ["description", "summary"]) || null,
-    categories: pickStringArray(source, ["categories"]),
+    tags,
+    categories: categories.length > 0 ? categories : tags.map((tag) => tag.name),
     coverUrl: pickString(source, ["coverUrl"]) || null,
   };
 }
 
 type BooksFilters = {
-  categories?: string[];
+  tagIds?: string[];
 };
 
 export async function getBooks(filters: BooksFilters = {}) {
-  const categories = filters.categories?.filter(Boolean) ?? [];
+  const tagIds = filters.tagIds?.filter(Boolean) ?? [];
   const query =
-    categories.length > 0
-      ? `?categories=${encodeURIComponent(categories.join(","))}`
+    tagIds.length > 0
+      ? `?tagIds=${encodeURIComponent(tagIds.join(","))}`
       : "";
   const response = await apiClient.request<unknown>(`/books${query}`);
   return unwrapArray(response).map(adaptBook);
@@ -37,7 +59,7 @@ export async function createBook(payload: {
   title: string;
   author?: string;
   description?: string;
-  categories?: string[];
+  tagIds?: string[];
 }) {
   return apiClient.request("/books", {
     method: "POST",
@@ -50,7 +72,7 @@ export async function updateBook(payload: {
   title?: string;
   author?: string;
   description?: string;
-  categories?: string[];
+  tagIds?: string[];
 }) {
   const { bookId, ...body } = payload;
   return apiClient.request(`/books/${bookId}`, {
