@@ -70,3 +70,19 @@ export function pickNumber(
   return fallback;
 }
 
+export function pickStringArray(
+  source: Record<string, unknown>,
+  keys: string[]
+) {
+  for (const key of keys) {
+    const value = source[key];
+    if (Array.isArray(value)) {
+      return value
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  }
+
+  return [];
+}

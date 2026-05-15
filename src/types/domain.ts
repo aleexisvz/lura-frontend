@@ -9,13 +9,20 @@ export type SessionUser = {
 export type Manga = {
   id: string;
   title: string;
+  author?: string | null;
   description?: string;
+  categories: string[];
+  coverUrl: string | null;
 };
 
 export type Volume = {
   id: string;
+  mangaId?: string;
   title: string;
-  number?: number;
+  number: number;
+  status?: "UPLOADING" | "READY";
+  pagesCount?: number;
+  coverUrl: string | null;
 };
 
 export type MangaPage = {
@@ -48,7 +55,8 @@ export type ReadingStats = {
 export type Book = {
   id: string;
   title: string;
-  author?: string;
-  description?: string;
+  author?: string | null;
+  description?: string | null;
+  categories: string[];
+  coverUrl: string | null;
 };
-

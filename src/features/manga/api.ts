@@ -3,8 +3,9 @@ import {
   isRecord,
   pickNumber,
   pickString,
+  pickStringArray,
   unwrapArray,
-  unwrapObject
+  unwrapObject,
 } from "@/lib/adapters";
 import { Manga, MangaPage, MangaProgress, Volume } from "@/types/domain";
 
@@ -13,7 +14,10 @@ function adaptManga(value: unknown): Manga {
   return {
     id: pickString(source, ["id", "mangaId"]),
     title: pickString(source, ["title", "name"], "Untitled manga"),
-    description: pickString(source, ["description", "summary"])
+    author: pickString(source, ["author"]) || null,
+    description: pickString(source, ["description", "summary"]),
+    categories: pickStringArray(source, ["categories"]),
+    coverUrl: pickString(source, ["coverUrl"]) || null,
   };
 }
 
@@ -21,8 +25,12 @@ function adaptVolume(value: unknown): Volume {
   const source = unwrapObject(value);
   return {
     id: pickString(source, ["id", "volumeId"]),
+    mangaId: pickString(source, ["mangaId"]) || undefined,
     title: pickString(source, ["title", "name"], "Volume"),
-    number: pickNumber(source, ["number", "index"], 0)
+    number: pickNumber(source, ["number", "index"], 0),
+    status: pickString(source, ["status"]) as Volume["status"],
+    pagesCount: pickNumber(source, ["pagesCount"], 0),
+    coverUrl: pickString(source, ["coverUrl"]) || null,
   };
 }
 
@@ -30,12 +38,21 @@ function adaptPage(value: unknown): MangaPage {
   const source = unwrapObject(value);
   return {
     pageNumber: pickNumber(source, ["index", "pageNumber", "page", "number"], 1),
-    imageUrl: pickString(source, ["imageUrl", "image_url", "url"])
+    imageUrl: pickString(source, ["imageUrl", "image_url", "url"]),
   };
 }
 
-export async function getMangaList() {
-  const response = await apiClient.request<unknown>("/manga");
+type MangaListFilters = {
+  categories?: string[];
+};
+
+export async function getMangaList(filters: MangaListFilters = {}) {
+  const categories = filters.categories?.filter(Boolean) ?? [];
+  const query =
+    categories.length > 0
+      ? `?categories=${encodeURIComponent(categories.join(","))}`
+      : "";
+  const response = await apiClient.request<unknown>(`/manga${query}`);
   return unwrapArray(response).map(adaptManga);
 }
 
@@ -50,24 +67,17 @@ export async function getVolumes(mangaId: string) {
 }
 
 export async function getPages(mangaId: string, volumeId: string) {
-  const response = await apiClient.request<unknown>(
-    `/manga/${mangaId}/volumes/${volumeId}/pages`
-  );
-  const raw = isRecord(response) && Array.isArray((response as Record<string, unknown>).pages)
-    ? (response as Record<string, unknown>).pages
-    : unwrapArray(response);
+  const response = await apiClient.request<unknown>(`/manga/${mangaId}/volumes/${volumeId}/pages`);
+  const raw =
+    isRecord(response) && Array.isArray((response as Record<string, unknown>).pages)
+      ? (response as Record<string, unknown>).pages
+      : unwrapArray(response);
   const pages = (raw as unknown[]).map(adaptPage);
   return pages.sort((a, b) => a.pageNumber - b.pageNumber);
 }
 
-export async function getPageImageBlob(
-  mangaId: string,
-  volumeId: string,
-  pageNumber: number
-) {
-  return apiClient.fetchBlob(
-    `/manga/${mangaId}/volumes/${volumeId}/pages/${pageNumber}/image`
-  );
+export async function getPageImageBlob(mangaId: string, volumeId: string, pageNumber: number) {
+  return apiClient.fetchBlob(`/manga/${mangaId}/volumes/${volumeId}/pages/${pageNumber}/image`);
 }
 
 export async function getProgress(mangaId: string): Promise<MangaProgress | null> {
@@ -92,11 +102,14 @@ export async function saveProgress(payload: {
   const { mangaId, volumeId, pageNumber } = payload;
   return apiClient.request(`/manga/${mangaId}/progress`, {
     method: "POST",
-    body: { volumeId, page: pageNumber }
+    body: { volumeId, page: pageNumber },
   });
 }
 
-export async function getVolumeCompletion(mangaId: string, volumeId: string): Promise<{ completed: boolean; completedAt: string | null }> {
+export async function getVolumeCompletion(
+  mangaId: string,
+  volumeId: string
+): Promise<{ completed: boolean; completedAt: string | null }> {
   const response = await apiClient.request<unknown>(`/manga/${mangaId}/volumes/${volumeId}/complete`);
   const source = unwrapObject(response);
   return {
@@ -117,22 +130,44 @@ export async function resetVolumeCompletion(mangaId: string, volumeId: string) {
   });
 }
 
-export async function createManga(payload: { title: string; description?: string }) {
+export async function createManga(payload: { title: string; author?: string; categories?: string[] }) {
   return apiClient.request("/manga", {
     method: "POST",
-    body: payload
+    body: payload,
   });
 }
 
-export async function createVolume(payload: {
+export async function updateManga(payload: {
   mangaId: string;
-  title: string;
-  number?: number;
+  title?: string;
+  author?: string;
+  categories?: string[];
 }) {
+  const { mangaId, ...body } = payload;
+  return apiClient.request(`/manga/${mangaId}`, {
+    method: "PATCH",
+    body,
+  });
+}
+
+export async function createVolume(payload: { mangaId: string; title?: string; number: number }) {
   const { mangaId, ...body } = payload;
   return apiClient.request(`/manga/${mangaId}/volumes`, {
     method: "POST",
-    body
+    body,
+  });
+}
+
+export async function updateVolume(payload: {
+  mangaId: string;
+  volumeId: string;
+  title?: string;
+  number?: number;
+}) {
+  const { mangaId, volumeId, ...body } = payload;
+  return apiClient.request(`/manga/${mangaId}/volumes/${volumeId}`, {
+    method: "PATCH",
+    body,
   });
 }
 
@@ -144,11 +179,32 @@ export async function uploadVolumePages(payload: {
   const formData = new FormData();
   payload.files.forEach((file) => formData.append("files", file));
 
-  return apiClient.request(
-    `/manga/${payload.mangaId}/volumes/${payload.volumeId}/upload`,
-    {
-      method: "POST",
-      body: formData
-    }
-  );
+  return apiClient.request(`/manga/${payload.mangaId}/volumes/${payload.volumeId}/upload`, {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export async function uploadMangaCover(payload: { mangaId: string; file: File }) {
+  const formData = new FormData();
+  formData.append("file", payload.file);
+
+  return apiClient.request(`/manga/${payload.mangaId}/upload-cover`, {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export async function uploadVolumeCover(payload: {
+  mangaId: string;
+  volumeId: string;
+  file: File;
+}) {
+  const formData = new FormData();
+  formData.append("file", payload.file);
+
+  return apiClient.request(`/manga/${payload.mangaId}/volumes/${payload.volumeId}/upload-cover`, {
+    method: "POST",
+    body: formData,
+  });
 }
