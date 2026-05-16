@@ -35,6 +35,7 @@ function adaptManga(value: unknown): Manga {
   return {
     id: pickString(source, ["id", "mangaId"]),
     title: pickString(source, ["title", "name"], "Untitled manga"),
+    titleKanji: pickString(source, ["titleKanji"]) || null,
     author: pickString(source, ["author"]) || null,
     description: pickString(source, ["description", "summary"]),
     tags,
@@ -152,7 +153,12 @@ export async function resetVolumeCompletion(mangaId: string, volumeId: string) {
   });
 }
 
-export async function createManga(payload: { title: string; author?: string; tagIds?: string[] }) {
+export async function createManga(payload: {
+  title: string;
+  titleKanji?: string;
+  author?: string;
+  tagIds?: string[];
+}) {
   return apiClient.request("/manga", {
     method: "POST",
     body: payload,
@@ -162,6 +168,7 @@ export async function createManga(payload: { title: string; author?: string; tag
 export async function updateManga(payload: {
   mangaId: string;
   title?: string;
+  titleKanji?: string;
   author?: string;
   tagIds?: string[];
 }) {

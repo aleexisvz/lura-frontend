@@ -105,6 +105,7 @@ export function MangaDetailPage() {
             <div className="cover-placeholder detail-cover-image">Sin portada</div>
           )}
           <h1>{mangaQuery.data.title}</h1>
+          {mangaQuery.data.titleKanji && <p className="muted-text">{mangaQuery.data.titleKanji}</p>}
           <p className="muted-text">{mangaQuery.data.author || "Autor no disponible"}</p>
           {mangaQuery.data.categories.length > 0 && (
             <p className="muted-text">Categorías: {mangaQuery.data.categories.join(", ")}</p>

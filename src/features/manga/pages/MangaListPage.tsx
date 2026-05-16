@@ -164,6 +164,7 @@ export function MangaListPage() {
 
               <div className="manga-hover-layer">
                 <h3 className="manga-poster-title">{item.title}</h3>
+                {item.titleKanji && <p className="manga-poster-subtitle">{item.titleKanji}</p>}
                 <div className="manga-hover-tags">
                   <span className="manga-tag manga-tag-type">{demoType}</span>
                   <span className="manga-tag manga-tag-status">

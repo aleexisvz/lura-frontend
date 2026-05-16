@@ -29,6 +29,7 @@ const tagIdsSchema = z.array(z.string().trim().min(1)).max(100);
 
 const createMangaSchema = z.object({
   title: z.string().trim().min(2, "Titulo demasiado corto"),
+  titleKanji: z.string().trim().optional(),
   author: z.string().trim().optional(),
   tagIds: tagIdsSchema.optional(),
 });
@@ -36,6 +37,7 @@ const createMangaSchema = z.object({
 const updateMangaSchema = z.object({
   mangaId: z.string().trim().min(1, "Selecciona un manga"),
   title: z.string().trim().optional(),
+  titleKanji: z.string().trim().optional(),
   author: z.string().trim().optional(),
   tagIds: tagIdsSchema.optional(),
 });
@@ -106,10 +108,12 @@ export function AdminPanelPage() {
   const [tagName, setTagName] = useState("");
 
   const [mangaTitle, setMangaTitle] = useState("");
+  const [mangaTitleKanji, setMangaTitleKanji] = useState("");
   const [mangaAuthor, setMangaAuthor] = useState("");
   const [mangaTagIds, setMangaTagIds] = useState<string[]>([]);
   const [editMangaId, setEditMangaId] = useState("");
   const [editMangaTitle, setEditMangaTitle] = useState("");
+  const [editMangaTitleKanji, setEditMangaTitleKanji] = useState("");
   const [editMangaAuthor, setEditMangaAuthor] = useState("");
   const [editMangaTagIds, setEditMangaTagIds] = useState<string[]>([]);
   const [mangaCoverId, setMangaCoverId] = useState("");
@@ -198,6 +202,7 @@ export function AdminPanelPage() {
       await queryClient.invalidateQueries({ queryKey: ["manga-list-admin"] });
       setSuccess("Manga creado correctamente");
       setMangaTitle("");
+      setMangaTitleKanji("");
       setMangaAuthor("");
       setMangaTagIds([]);
     },
@@ -329,11 +334,13 @@ export function AdminPanelPage() {
   useEffect(() => {
     if (!editMangaId) {
       setEditMangaTagIds([]);
+      setEditMangaTitleKanji("");
       return;
     }
 
     const selected = (mangaQuery.data ?? []).find((manga) => manga.id === editMangaId);
     setEditMangaTagIds(selected?.tags.map((tag) => tag.id) ?? []);
+    setEditMangaTitleKanji(selected?.titleKanji ?? "");
   }, [editMangaId, mangaQuery.data]);
 
   useEffect(() => {
@@ -388,6 +395,7 @@ export function AdminPanelPage() {
     setSuccess(null);
     const parsed = createMangaSchema.safeParse({
       title: mangaTitle,
+      titleKanji: mangaTitleKanji || undefined,
       author: mangaAuthor || undefined,
       tagIds: mangaTagIds,
     });
@@ -401,6 +409,7 @@ export function AdminPanelPage() {
     const parsed = updateMangaSchema.safeParse({
       mangaId: editMangaId,
       title: editMangaTitle || undefined,
+      titleKanji: editMangaTitleKanji || undefined,
       author: editMangaAuthor || undefined,
       tagIds: editMangaTagIds,
     });
@@ -549,6 +558,10 @@ export function AdminPanelPage() {
               <input value={mangaTitle} onChange={(event) => setMangaTitle(event.target.value)} />
             </label>
             <label>
+              Titulo (Kanji)
+              <input value={mangaTitleKanji} onChange={(event) => setMangaTitleKanji(event.target.value)} />
+            </label>
+            <label>
               Autor
               <input value={mangaAuthor} onChange={(event) => setMangaAuthor(event.target.value)} />
             </label>
@@ -584,6 +597,13 @@ export function AdminPanelPage() {
             <label>
               Nuevo titulo
               <input value={editMangaTitle} onChange={(event) => setEditMangaTitle(event.target.value)} />
+            </label>
+            <label>
+              Nuevo titulo (Kanji)
+              <input
+                value={editMangaTitleKanji}
+                onChange={(event) => setEditMangaTitleKanji(event.target.value)}
+              />
             </label>
             <label>
               Nuevo autor

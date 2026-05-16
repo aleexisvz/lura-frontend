@@ -376,6 +376,15 @@ select {
   text-align: center;
 }
 
+.manga-poster-subtitle {
+  margin: 0;
+  font-size: 0.65rem;
+  line-height: 1.2;
+  color: #8aa0c8;
+  text-align: center;
+  opacity: 0.8;
+}
+
 .manga-hover-tags {
   display: flex;
   gap: 0.3rem;

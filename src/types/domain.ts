@@ -18,6 +18,7 @@ export type Tag = {
 export type Manga = {
   id: string;
   title: string;
+  titleKanji?: string | null;
   author?: string | null;
   description?: string;
   tags: Tag[];
