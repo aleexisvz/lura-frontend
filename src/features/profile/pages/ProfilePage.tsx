@@ -6,12 +6,14 @@ import { useAuth } from "@/features/auth/AuthContext";
 import { getContinueReading, getReadingStats } from "@/features/reading/api";
 
 function formatReadingTime(totalSeconds: number): string {
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-  const mm = String(m).padStart(2, "0");
-  const ss = String(s).padStart(2, "0");
-  return `${h}:${mm}:${ss}`;
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+  const dd = String(days).padStart(2, "0");
+  const hh = String(hours).padStart(2, "0");
+  const mm = String(minutes).padStart(2, "0");
+  return `${dd}:${hh}:${mm}`;
 }
 
 export function ProfilePage() {
