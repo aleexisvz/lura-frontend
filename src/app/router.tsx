@@ -12,6 +12,7 @@ import { BooksListPage } from "@/features/books/pages/BooksListPage";
 import { BookDetailPage } from "@/features/books/pages/BookDetailPage";
 import { AdminPanelPage } from "@/features/admin/pages/AdminPanelPage";
 import { PromotePage } from "@/features/admin/pages/PromotePage";
+import { ProfilePage } from "@/features/profile/pages/ProfilePage";
 
 export function AppRouter() {
   return (
@@ -22,6 +23,7 @@ export function AppRouter() {
       <Route element={<AuthGuard />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/profile" element={<ProfilePage />} />
           <Route path="/manga" element={<MangaListPage />} />
           <Route path="/manga/:mangaId" element={<MangaDetailPage />} />
           <Route
@@ -46,4 +48,3 @@ export function AppRouter() {
     </Routes>
   );
 }
-

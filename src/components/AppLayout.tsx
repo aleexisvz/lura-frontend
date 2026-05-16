@@ -3,6 +3,7 @@ import { useAuth } from "@/features/auth/AuthContext";
 
 const navItems = [
   { to: "/", label: "Home" },
+  { to: "/profile", label: "Perfil" },
   { to: "/manga", label: "Manga" },
   { to: "/books", label: "Books" }
 ];
@@ -45,4 +46,3 @@ export function AppLayout() {
     </div>
   );
 }
-

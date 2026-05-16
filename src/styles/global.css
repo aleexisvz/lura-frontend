@@ -466,7 +466,7 @@ select {
   display: grid;
   grid-template-columns: minmax(140px, 220px) minmax(220px, 1fr) minmax(140px, 220px) 160px;
   gap: 0.85rem;
-  align-items: start;
+  align-items: end;
   margin-bottom: 0.15rem;
 }
 
@@ -490,6 +490,7 @@ select {
 }
 
 .filter-panel {
+  position: relative;
   background: #151f33;
   border: 1px solid #2a3c5f;
   border-radius: 12px;
@@ -513,14 +514,23 @@ select {
 
 .filter-panel[open] summary {
   border-bottom: 1px solid #2a3c5f;
+  border-radius: 12px 12px 0 0;
 }
 
 .filter-panel .tag-check-grid {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: #151f33;
+  border: 1px solid #2a3c5f;
+  border-top: none;
+  border-radius: 0 0 12px 12px;
   padding: 0.75rem 0.8rem;
 }
 
 .filter-submit {
-  align-self: end;
   height: 42px;
   background: #39cfc1;
   color: #03161d;
