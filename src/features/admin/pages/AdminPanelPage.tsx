@@ -39,6 +39,7 @@ const updateMangaSchema = z.object({
   title: z.string().trim().optional(),
   titleKanji: z.string().trim().optional(),
   author: z.string().trim().optional(),
+  description: z.string().trim().optional(),
   tagIds: tagIdsSchema.optional(),
 });
 
@@ -115,6 +116,7 @@ export function AdminPanelPage() {
   const [editMangaTitle, setEditMangaTitle] = useState("");
   const [editMangaTitleKanji, setEditMangaTitleKanji] = useState("");
   const [editMangaAuthor, setEditMangaAuthor] = useState("");
+  const [editMangaDescription, setEditMangaDescription] = useState("");
   const [editMangaTagIds, setEditMangaTagIds] = useState<string[]>([]);
   const [mangaCoverId, setMangaCoverId] = useState("");
   const [mangaCoverFile, setMangaCoverFile] = useState<File | null>(null);
@@ -335,12 +337,14 @@ export function AdminPanelPage() {
     if (!editMangaId) {
       setEditMangaTagIds([]);
       setEditMangaTitleKanji("");
+      setEditMangaDescription("");
       return;
     }
 
     const selected = (mangaQuery.data ?? []).find((manga) => manga.id === editMangaId);
     setEditMangaTagIds(selected?.tags.map((tag) => tag.id) ?? []);
     setEditMangaTitleKanji(selected?.titleKanji ?? "");
+    setEditMangaDescription(selected?.description ?? "");
   }, [editMangaId, mangaQuery.data]);
 
   useEffect(() => {
@@ -411,6 +415,7 @@ export function AdminPanelPage() {
       title: editMangaTitle || undefined,
       titleKanji: editMangaTitleKanji || undefined,
       author: editMangaAuthor || undefined,
+      description: editMangaDescription || undefined,
       tagIds: editMangaTagIds,
     });
     if (!parsed.success) return;
@@ -608,6 +613,13 @@ export function AdminPanelPage() {
             <label>
               Nuevo autor
               <input value={editMangaAuthor} onChange={(event) => setEditMangaAuthor(event.target.value)} />
+            </label>
+            <label>
+              Nueva descripcion
+              <textarea
+                value={editMangaDescription}
+                onChange={(event) => setEditMangaDescription(event.target.value)}
+              />
             </label>
             <div>
               <strong>Tags (MANGA)</strong>

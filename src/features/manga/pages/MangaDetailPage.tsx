@@ -11,6 +11,7 @@ import { ErrorBox } from "@/components/ErrorBox";
 import { Loading } from "@/components/Loading";
 import { Volume } from "@/types/domain";
 import { ProtectedImage } from "@/components/ProtectedImage";
+import { getDemoMangaType, getDemoStatus } from "@/lib/demoFilters";
 
 function VolumeRow({ mangaId, volume }: { mangaId: string; volume: Volume }) {
   const queryClient = useQueryClient();
@@ -28,9 +29,11 @@ function VolumeRow({ mangaId, volume }: { mangaId: string; volume: Volume }) {
     },
   });
 
+  const isCompleted = completionQuery.data?.completed === true;
+
   return (
-    <div className="split-row volume-row">
-      <div className="split-row">
+    <div className="volume-detail-row">
+      <div className="volume-detail-main">
         {volume.coverUrl ? (
           <ProtectedImage
             path={volume.coverUrl}
@@ -40,29 +43,31 @@ function VolumeRow({ mangaId, volume }: { mangaId: string; volume: Volume }) {
         ) : (
           <div className="volume-cover-placeholder">Sin portada</div>
         )}
-        <div>
-          <strong>
+        <div className="volume-detail-copy">
+          <strong className="volume-detail-title">
             {volume.number > 0 ? `Vol. ${volume.number}` : "Volumen"} {volume.title}
           </strong>
           {volume.pagesCount !== undefined && (
-            <p className="muted-text">Páginas: {volume.pagesCount}</p>
+            <p className="muted-text">Paginas: {volume.pagesCount}</p>
           )}
         </div>
       </div>
-      <div className="split-row">
-        {completionQuery.data?.completed && (
-          <>
-            <span className="muted-text">Completado</span>
-            <button
-              type="button"
-              disabled={resetMutation.isPending}
-              onClick={() => resetMutation.mutate()}
-            >
-              Reiniciar
-            </button>
-          </>
+
+      <div className="volume-detail-actions">
+        {isCompleted && <span className="volume-detail-completed">Completado</span>}
+        {isCompleted && (
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={resetMutation.isPending}
+            onClick={() => resetMutation.mutate()}
+          >
+            Reiniciar
+          </button>
         )}
-        <Link to={`/manga/${mangaId}/volumes/${volume.id}/pages`}>Ver páginas</Link>
+        <Link className="volume-detail-link" to={`/manga/${mangaId}/volumes/${volume.id}/pages`}>
+          Ver paginas
+        </Link>
       </div>
     </div>
   );
@@ -89,38 +94,84 @@ export function MangaDetailPage() {
     enabled: Boolean(mangaId),
   });
 
+  const demoType = mangaQuery.data ? getDemoMangaType(mangaQuery.data.id) : "MANGA";
+  const demoStatus = mangaQuery.data ? getDemoStatus(mangaQuery.data.id) : "EN_EMISION";
+
+  const descriptionParagraphs = (mangaQuery.data?.description ?? "")
+    .split(/\n{2,}/)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
   return (
-    <section className="grid">
+    <section className="grid manga-detail-layout">
       {mangaQuery.isLoading && <Loading text="Cargando manga..." />}
       {mangaQuery.isError && <ErrorBox error={mangaQuery.error} />}
+
       {mangaQuery.data && (
-        <article className="card">
-          {mangaQuery.data.coverUrl ? (
-            <ProtectedImage
-              path={mangaQuery.data.coverUrl}
-              alt={`Portada de ${mangaQuery.data.title}`}
-              className="detail-cover-image"
-            />
-          ) : (
-            <div className="cover-placeholder detail-cover-image">Sin portada</div>
-          )}
-          <h1>{mangaQuery.data.title}</h1>
-          {mangaQuery.data.titleKanji && <p className="muted-text">{mangaQuery.data.titleKanji}</p>}
-          <p className="muted-text">{mangaQuery.data.author || "Autor no disponible"}</p>
-          {mangaQuery.data.categories.length > 0 && (
-            <p className="muted-text">Categorías: {mangaQuery.data.categories.join(", ")}</p>
-          )}
-          {progressQuery.data?.volumeId && !progressQuery.data.completed && (
-            <Link to={`/reader/${mangaId}/${progressQuery.data.volumeId}/${progressQuery.data.pageNumber}`}>
-              Continuar desde página {progressQuery.data.pageNumber}
-            </Link>
-          )}
+        <article className="card manga-hero-card">
+          <div className="manga-hero-grid">
+            {mangaQuery.data.coverUrl ? (
+              <ProtectedImage
+                path={mangaQuery.data.coverUrl}
+                alt={`Portada de ${mangaQuery.data.title}`}
+                className="manga-hero-cover"
+              />
+            ) : (
+              <div className="cover-placeholder manga-hero-cover">Sin portada</div>
+            )}
+
+            <div className="manga-hero-content">
+              <h1 className="manga-hero-title">{mangaQuery.data.title}</h1>
+
+              <div className="manga-hero-meta">
+                {mangaQuery.data.titleKanji && (
+                  <span className="manga-hero-kanji">{mangaQuery.data.titleKanji}</span>
+                )}
+                <span className="manga-hero-author">{"\u{1F464}"} {mangaQuery.data.author || "Autor desconocido"}</span>
+                <span className="manga-hero-type">{demoType}</span>
+                <span
+                  className={`manga-hero-status ${
+                    demoStatus === "FINALIZADO" ? "is-finished" : "is-ongoing"
+                  }`}
+                >
+                  {"\u{2705}"} {demoStatus === "FINALIZADO" ? "FINALIZADO" : "EN EMISION"}
+                </span>
+              </div>
+
+              {mangaQuery.data.categories.length > 0 && (
+                <div className="manga-hero-tags">
+                  {mangaQuery.data.categories.map((category) => (
+                    <span key={category} className="manga-hero-tag">
+                      {category}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {descriptionParagraphs.length > 0 && (
+                <div className="manga-hero-description">
+                  {descriptionParagraphs.map((paragraph, index) => (
+                    <p key={`desc-${index}`}>{paragraph}</p>
+                  ))}
+                </div>
+              )}
+
+              {progressQuery.data?.volumeId && !progressQuery.data.completed && (
+                <Link
+                  className="manga-continue-link"
+                  to={`/reader/${mangaId}/${progressQuery.data.volumeId}/${progressQuery.data.pageNumber}`}
+                >
+                  Continuar desde pagina {progressQuery.data.pageNumber}
+                </Link>
+              )}
+            </div>
+          </div>
         </article>
       )}
 
-      <article className="card">
-        <h2>Volúmenes</h2>
-        {volumesQuery.isLoading && <Loading text="Cargando volúmenes..." />}
+      <article className="card manga-volumes-card">
+        <h2>Volumenes</h2>
+        {volumesQuery.isLoading && <Loading text="Cargando volumenes..." />}
         {volumesQuery.isError && <ErrorBox error={volumesQuery.error} />}
 
         <div className="grid">

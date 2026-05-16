@@ -157,6 +157,7 @@ export async function createManga(payload: {
   title: string;
   titleKanji?: string;
   author?: string;
+  description?: string;
   tagIds?: string[];
 }) {
   return apiClient.request("/manga", {
@@ -170,6 +171,7 @@ export async function updateManga(payload: {
   title?: string;
   titleKanji?: string;
   author?: string;
+  description?: string;
   tagIds?: string[];
 }) {
   const { mangaId, ...body } = payload;
