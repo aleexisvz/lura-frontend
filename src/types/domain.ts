@@ -6,6 +6,13 @@ export type SessionUser = {
   sub?: string;
 };
 
+export type UserProfile = {
+  id: string;
+  email: string;
+  role: Role;
+  profileImageUrl: string | null;
+};
+
 export type TagScope = "MANGA" | "BOOK";
 
 export type Tag = {
