@@ -29,7 +29,8 @@ export async function getReadingStats(): Promise<ReadingStats> {
     totalMinutes: pickNumber(source, ["totalMinutes", "minutes"], 0),
     totalSeconds: pickNumber(source, ["totalSeconds", "seconds"], 0),
     totalPagesRead: pickNumber(source, ["totalPagesRead", "pagesRead"], 0),
-    totalVolumesRead: pickNumber(source, ["totalVolumesRead", "volumesRead"], 0)
+    totalVolumesRead: pickNumber(source, ["totalVolumesRead", "volumesRead"], 0),
+    totalMangasRead: pickNumber(source, ["totalMangasRead", "mangasRead"], 0),
   };
 }
 
@@ -52,4 +53,3 @@ export async function endReadingSession(sessionId: string) {
     method: "POST"
   });
 }
-

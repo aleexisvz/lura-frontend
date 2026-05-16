@@ -61,6 +61,7 @@ export type ReadingStats = {
   totalSeconds: number;
   totalPagesRead: number;
   totalVolumesRead: number;
+  totalMangasRead: number;
 };
 
 export type Book = {

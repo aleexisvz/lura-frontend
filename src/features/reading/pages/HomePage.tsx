@@ -66,6 +66,7 @@ export function HomePage() {
             <div className="grid">
               <p>Total sesiones: {statsQuery.data.totalSessions}</p>
               <p>Tiempo total de lectura: {formatReadingTime(statsQuery.data.totalSeconds)}</p>
+              <p>Total mangas leidos: {statsQuery.data.totalMangasRead}</p>
               <p>Total volúmenes leídos: {statsQuery.data.totalVolumesRead}</p>
               <p>Total páginas leídas: {statsQuery.data.totalPagesRead}</p>
             </div>
@@ -75,4 +76,3 @@ export function HomePage() {
     </section>
   );
 }
-

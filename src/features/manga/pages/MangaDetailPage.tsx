@@ -1,80 +1,42 @@
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  getMangaById,
-  getProgress,
-  getVolumes,
-  getVolumeCompletion,
-  resetVolumeCompletion,
-} from "@/features/manga/api";
+import { useQuery } from "@tanstack/react-query";
+import { getMangaById, getProgress, getVolumes } from "@/features/manga/api";
 import { ErrorBox } from "@/components/ErrorBox";
 import { Loading } from "@/components/Loading";
 import { Volume } from "@/types/domain";
 import { ProtectedImage } from "@/components/ProtectedImage";
 import { getDemoMangaType, getDemoStatus } from "@/lib/demoFilters";
 
-function VolumeRow({ mangaId, volume }: { mangaId: string; volume: Volume }) {
-  const queryClient = useQueryClient();
-
-  const completionQuery = useQuery({
-    queryKey: ["volume-completion", mangaId, volume.id],
-    queryFn: () => getVolumeCompletion(mangaId, volume.id),
-  });
-
-  const resetMutation = useMutation({
-    mutationFn: () => resetVolumeCompletion(mangaId, volume.id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["volume-completion", mangaId, volume.id] });
-      queryClient.invalidateQueries({ queryKey: ["manga-progress", mangaId] });
-    },
-  });
-
-  const isCompleted = completionQuery.data?.completed === true;
+function VolumePosterCard({ mangaId, volume }: { mangaId: string; volume: Volume }) {
+  const pagesCount = volume.pagesCount ?? 0;
+  const volumeTitle =
+    volume.number > 0 ? `Vol. ${volume.number} ${volume.title}` : `Volumen ${volume.title}`;
 
   return (
-    <div className="volume-detail-row">
-      <div className="volume-detail-main">
-        {volume.coverUrl ? (
-          <ProtectedImage
-            path={volume.coverUrl}
-            alt={`Portada de ${volume.title}`}
-            className="volume-cover-image"
-          />
-        ) : (
-          <div className="volume-cover-placeholder">Sin portada</div>
-        )}
-        <div className="volume-detail-copy">
-          <strong className="volume-detail-title">
-            {volume.number > 0 ? `Vol. ${volume.number}` : "Volumen"} {volume.title}
-          </strong>
-          {volume.pagesCount !== undefined && (
-            <p className="muted-text">Paginas: {volume.pagesCount}</p>
-          )}
-        </div>
-      </div>
+    <Link
+      to={`/manga/${mangaId}/volumes/${volume.id}/pages`}
+      className="volume-poster-card"
+      aria-label={`Abrir ${volumeTitle}`}
+    >
+      {volume.coverUrl ? (
+        <ProtectedImage path={volume.coverUrl} alt={`Portada de ${volume.title}`} className="volume-poster-image" />
+      ) : (
+        <div className="volume-poster-image volume-poster-fallback">Sin portada</div>
+      )}
 
-      <div className="volume-detail-actions">
-        {isCompleted && <span className="volume-detail-completed">Completado</span>}
-        {isCompleted && (
-          <button
-            type="button"
-            className="secondary-button"
-            disabled={resetMutation.isPending}
-            onClick={() => resetMutation.mutate()}
-          >
-            Reiniciar
-          </button>
-        )}
-        <Link className="volume-detail-link" to={`/manga/${mangaId}/volumes/${volume.id}/pages`}>
-          Ver paginas
-        </Link>
+      <span className="volume-pages-badge">{pagesCount}</span>
+
+      <div className="volume-hover-layer">
+        <p className="volume-hover-title">{volumeTitle}</p>
       </div>
-    </div>
+    </Link>
   );
 }
 
 export function MangaDetailPage() {
   const { mangaId = "" } = useParams();
+  const [volumeOrder, setVolumeOrder] = useState<"ASC" | "DESC">("ASC");
 
   const mangaQuery = useQuery({
     queryKey: ["manga-detail", mangaId],
@@ -101,6 +63,16 @@ export function MangaDetailPage() {
     .split(/\n{2,}/)
     .map((segment) => segment.trim())
     .filter(Boolean);
+
+  const orderedVolumes = useMemo(() => {
+    const source = [...(volumesQuery.data ?? [])];
+    source.sort((a, b) => {
+      const aNumber = a.number ?? 0;
+      const bNumber = b.number ?? 0;
+      return volumeOrder === "ASC" ? aNumber - bNumber : bNumber - aNumber;
+    });
+    return source;
+  }, [volumesQuery.data, volumeOrder]);
 
   return (
     <section className="grid manga-detail-layout">
@@ -170,13 +142,26 @@ export function MangaDetailPage() {
       )}
 
       <article className="card manga-volumes-card">
-        <h2>Volumenes</h2>
+        <div className="manga-volumes-toolbar">
+          <h2>{orderedVolumes.length} Capitulos</h2>
+          <label className="volume-order-control">
+            <span>Ordenar por:</span>
+            <select
+              value={volumeOrder}
+              onChange={(event) => setVolumeOrder(event.target.value as "ASC" | "DESC")}
+            >
+              <option value="ASC">Primeros</option>
+              <option value="DESC">Ultimos</option>
+            </select>
+          </label>
+        </div>
+
         {volumesQuery.isLoading && <Loading text="Cargando volumenes..." />}
         {volumesQuery.isError && <ErrorBox error={volumesQuery.error} />}
 
-        <div className="grid">
-          {volumesQuery.data?.map((volume) => (
-            <VolumeRow key={volume.id} mangaId={mangaId} volume={volume} />
+        <div className="volume-poster-grid">
+          {orderedVolumes.map((volume: Volume) => (
+            <VolumePosterCard key={volume.id} mangaId={mangaId} volume={volume} />
           ))}
         </div>
       </article>
