@@ -11,11 +11,14 @@ export async function getMe(): Promise<UserProfile> {
 
   const role = pickString(source, ["role"], "USER");
   const profileImageUrl = pickString(source, ["profileImageUrl"], "");
+  const createdAt = pickString(source, ["createdAt"], "");
 
   return {
     id: pickString(source, ["id"]),
     email: pickString(source, ["email"]),
+    username: pickString(source, ["username"]),
     role: (role === "ADMIN" ? "ADMIN" : "USER") as Role,
+    createdAt,
     profileImageUrl: profileImageUrl || null,
   };
 }
@@ -77,4 +80,3 @@ async function optimizeImage(file: File): Promise<File> {
     return file;
   }
 }
-

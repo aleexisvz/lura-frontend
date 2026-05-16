@@ -9,7 +9,9 @@ export type SessionUser = {
 export type UserProfile = {
   id: string;
   email: string;
+  username: string;
   role: Role;
+  createdAt: string;
   profileImageUrl: string | null;
 };
 
@@ -69,6 +71,20 @@ export type ReadingStats = {
   totalPagesRead: number;
   totalVolumesRead: number;
   totalMangasRead: number;
+  totalSeriesRead: number;
+  totalBooksRead: number;
+};
+
+export type RecentSeriesItem = {
+  contentId: string;
+  title: string;
+  coverUrl: string | null;
+  lastStartedAt: string;
+};
+
+export type RecentSeriesResponse = {
+  manga: RecentSeriesItem[];
+  books: RecentSeriesItem[];
 };
 
 export type Book = {

@@ -10,6 +10,7 @@ export function RegisterPage() {
   const navigate = useNavigate();
   const { setSession } = useAuth();
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"USER" | "ADMIN">("USER");
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -19,16 +20,16 @@ export function RegisterPage() {
     onSuccess: (token) => {
       setSession(token);
       navigate("/", { replace: true });
-    }
+    },
   });
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setValidationError(null);
 
-    const parsed = registerSchema.safeParse({ email, password, role });
+    const parsed = registerSchema.safeParse({ email, username, password, role });
     if (!parsed.success) {
-      setValidationError(parsed.error.issues[0]?.message ?? "Formulario inválido");
+      setValidationError(parsed.error.issues[0]?.message ?? "Formulario invalido");
       return;
     }
 
@@ -38,7 +39,7 @@ export function RegisterPage() {
   return (
     <section className="auth-card">
       <h1>Crear cuenta</h1>
-      <p className="muted-text">Podés registrar usuario normal o admin para pruebas.</p>
+      <p className="muted-text">Podras registrar usuario normal o admin para pruebas.</p>
       <form onSubmit={onSubmit} className="form-grid">
         <label>
           Email
@@ -50,7 +51,17 @@ export function RegisterPage() {
           />
         </label>
         <label>
-          Contraseña
+          Username
+          <input
+            type="text"
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
+            placeholder="ej: alexis_01"
+            required
+          />
+        </label>
+        <label>
+          Contrasena
           <input
             type="password"
             value={password}
@@ -72,7 +83,7 @@ export function RegisterPage() {
         </button>
       </form>
       <p className="muted-text">
-        ¿Ya tenés cuenta? <Link to="/login">Iniciar sesión</Link>
+        Ya tenes cuenta? <Link to="/login">Iniciar sesion</Link>
       </p>
     </section>
   );

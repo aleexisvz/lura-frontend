@@ -5,7 +5,7 @@ import {
   unwrapArray,
   unwrapObject
 } from "@/lib/adapters";
-import { ContinueReadingItem, ReadingStats } from "@/types/domain";
+import { ContinueReadingItem, ReadingStats, RecentSeriesResponse } from "@/types/domain";
 
 export async function getContinueReading(): Promise<ContinueReadingItem[]> {
   const response = await apiClient.request<unknown>("/users/me/continue-reading");
@@ -31,6 +31,29 @@ export async function getReadingStats(): Promise<ReadingStats> {
     totalPagesRead: pickNumber(source, ["totalPagesRead", "pagesRead"], 0),
     totalVolumesRead: pickNumber(source, ["totalVolumesRead", "volumesRead"], 0),
     totalMangasRead: pickNumber(source, ["totalMangasRead", "mangasRead"], 0),
+    totalSeriesRead: pickNumber(source, ["totalSeriesRead", "seriesRead"], 0),
+    totalBooksRead: pickNumber(source, ["totalBooksRead", "booksRead"], 0),
+  };
+}
+
+export async function getRecentSeries(limit = 12): Promise<RecentSeriesResponse> {
+  const response = await apiClient.request<unknown>(`/users/me/recent-series?limit=${limit}`);
+  const source = unwrapObject(response);
+
+  const mapRecentItems = (value: unknown) =>
+    unwrapArray(value).map((item) => {
+      const entry = unwrapObject(item);
+      return {
+        contentId: pickString(entry, ["contentId", "id"]),
+        title: pickString(entry, ["title"], "Sin titulo"),
+        coverUrl: pickString(entry, ["coverUrl"], "") || null,
+        lastStartedAt: pickString(entry, ["lastStartedAt"], ""),
+      };
+    });
+
+  return {
+    manga: mapRecentItems(source.manga),
+    books: mapRecentItems(source.books),
   };
 }
 
