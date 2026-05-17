@@ -1,12 +1,11 @@
-import { FormEvent, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { ErrorBox } from "@/components/ErrorBox";
 import { Loading } from "@/components/Loading";
 import { ProtectedImage } from "@/components/ProtectedImage";
-import { SuccessBox } from "@/components/SuccessBox";
 import { getReadingStats, getRecentSeries } from "@/features/reading/api";
-import { getMe, uploadProfileImage } from "@/features/users/api";
+import { getMe } from "@/features/users/api";
 
 function formatRegistrationDate(createdAt: string): string {
   if (!createdAt) return "Registro: fecha no disponible";
@@ -41,10 +40,6 @@ function formatReadingTimeByTier(totalSeconds: number): string {
 }
 
 export function ProfilePage() {
-  const queryClient = useQueryClient();
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
   const meQuery = useQuery({
     queryKey: ["me"],
     queryFn: getMe,
@@ -60,25 +55,10 @@ export function ProfilePage() {
     queryFn: () => getRecentSeries(12),
   });
 
-  const uploadMutation = useMutation({
-    mutationFn: uploadProfileImage,
-    onSuccess: async () => {
-      setSuccessMessage("Foto de perfil actualizada");
-      setSelectedFile(null);
-      await queryClient.invalidateQueries({ queryKey: ["me"] });
-    },
-  });
-
-  const submitProfileImage = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setSuccessMessage(null);
-    if (!selectedFile) return;
-    uploadMutation.mutate(selectedFile);
-  };
-
   const username = meQuery.data?.username || "usuario";
   const registrationLabel = formatRegistrationDate(meQuery.data?.createdAt ?? "");
   const readingTime = formatReadingTimeByTier(statsQuery.data?.totalSeconds ?? 0);
+  const [recentTab, setRecentTab] = useState<"manga" | "books">("manga");
 
   const statsLine = useMemo(() => {
     const series = statsQuery.data?.totalSeriesRead ?? 0;
@@ -88,9 +68,7 @@ export function ProfilePage() {
   }, [statsQuery.data]);
 
   return (
-    <section className="grid profile-v2-page">
-      {successMessage && <SuccessBox message={successMessage} />}
-
+    <section className="profile-v2-page">
       <article className="card profile-hero-card">
         <div className="profile-hero-main">
           <div className="profile-hero-avatar-wrap">
@@ -105,114 +83,123 @@ export function ProfilePage() {
                 {username.charAt(0).toUpperCase()}
               </div>
             )}
+            <span className="profile-level-badge">7</span>
           </div>
 
           <div className="profile-hero-meta">
             <h1>{username}</h1>
             <p className="muted-text">{registrationLabel}</p>
-            <p className="profile-level-demo">
-              Nivel: <strong>7</strong> <span>(DEMO)</span>
-            </p>
           </div>
-        </div>
 
-        <form onSubmit={submitProfileImage} className="profile-hero-upload">
-          <label>
-            Foto de perfil (PNG/JPG/WEBP, max 2MB)
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
-            />
-          </label>
-          <button type="submit" disabled={!selectedFile || uploadMutation.isPending}>
-            {uploadMutation.isPending ? "Subiendo..." : "Actualizar foto"}
-          </button>
-          {uploadMutation.isError && <ErrorBox error={uploadMutation.error} />}
-        </form>
+        </div>
+        <button type="button" className="profile-settings-button">
+          Ajustes
+        </button>
       </article>
 
-      <div className="grid grid-2 profile-v2-grid">
-        <article className="card profile-stats-card">
-          <h2>Estadisticas de lectura</h2>
-          {statsQuery.isLoading && <Loading />}
-          {statsQuery.isError && <ErrorBox error={statsQuery.error} />}
-          {statsQuery.data && (
-            <div className="profile-stats-lines">
-              <p>{statsLine}</p>
-              <p>
-                Tiempo de lectura: <strong>{readingTime}</strong>
-              </p>
-            </div>
-          )}
-        </article>
+      <div className="profile-v2-grid">
+        <div className="profile-v2-left-column">
+          <article className="card profile-stats-card">
+            <h2>Estadisticas de lectura</h2>
+            {statsQuery.isLoading && <Loading />}
+            {statsQuery.isError && <ErrorBox error={statsQuery.error} />}
+            {statsQuery.data && (
+              <div className="profile-stats-lines">
+                <p>{statsLine}</p>
+                <p>
+                  Tiempo de lectura: <strong>{readingTime}</strong>
+                </p>
+              </div>
+            )}
+          </article>
 
-        <article className="card profile-recent-card">
-          <h2>Ultimas series leidas</h2>
-          {recentSeriesQuery.isLoading && <Loading />}
-          {recentSeriesQuery.isError && <ErrorBox error={recentSeriesQuery.error} />}
-          {recentSeriesQuery.data && (
-            <div className="profile-recent-sections">
-              <section>
-                <h3>Manga</h3>
-                {recentSeriesQuery.data.manga.length === 0 ? (
-                  <p className="muted-text">No hay mangas recientes.</p>
-                ) : (
-                  <div className="profile-recent-grid">
-                    {recentSeriesQuery.data.manga.map((item) => (
-                      <Link
-                        key={`manga-${item.contentId}`}
-                        to={`/manga/${item.contentId}`}
-                        className="profile-recent-card-item"
-                      >
-                        {item.coverUrl ? (
-                          <ProtectedImage
-                            path={item.coverUrl}
-                            alt={`Portada de ${item.title}`}
-                            className="profile-recent-cover"
-                          />
-                        ) : (
-                          <div className="profile-recent-cover cover-placeholder">Sin portada</div>
-                        )}
-                        <span className="profile-recent-title">{item.title}</span>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </section>
-
-              <section>
-                <h3>Books</h3>
-                {recentSeriesQuery.data.books.length === 0 ? (
-                  <p className="muted-text">No hay books recientes.</p>
-                ) : (
-                  <div className="profile-recent-grid">
-                    {recentSeriesQuery.data.books.map((item) => (
-                      <Link
-                        key={`book-${item.contentId}`}
-                        to={`/books/${item.contentId}`}
-                        className="profile-recent-card-item"
-                      >
-                        {item.coverUrl ? (
-                          <ProtectedImage
-                            path={item.coverUrl}
-                            alt={`Portada de ${item.title}`}
-                            className="profile-recent-cover"
-                          />
-                        ) : (
-                          <div className="profile-recent-cover cover-placeholder">Sin portada</div>
-                        )}
-                        <span className="profile-recent-title">{item.title}</span>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </section>
+          <article className="card profile-recent-card">
+            <div className="profile-recent-header">
+              <h2>Ultimas series leidas</h2>
+              <div className="profile-recent-tabs">
+                <button
+                  type="button"
+                  className={`profile-recent-tab${recentTab === "manga" ? " active" : ""}`}
+                  onClick={() => setRecentTab("manga")}
+                >
+                  Manga
+                </button>
+                <button
+                  type="button"
+                  className={`profile-recent-tab${recentTab === "books" ? " active" : ""}`}
+                  onClick={() => setRecentTab("books")}
+                >
+                  Books
+                </button>
+              </div>
             </div>
-          )}
-        </article>
+            {recentSeriesQuery.isLoading && <Loading />}
+            {recentSeriesQuery.isError && <ErrorBox error={recentSeriesQuery.error} />}
+            {recentSeriesQuery.data && (
+              <div className="profile-recent-sections">
+                {recentTab === "manga" && (
+                  recentSeriesQuery.data.manga.length === 0 ? (
+                    <p className="muted-text">No hay mangas recientes.</p>
+                  ) : (
+                    <div className="profile-recent-grid">
+                      {recentSeriesQuery.data.manga.map((item) => (
+                        <Link
+                          key={`manga-${item.contentId}`}
+                          to={`/manga/${item.contentId}`}
+                          className="profile-recent-card-item"
+                        >
+                          {item.coverUrl ? (
+                            <ProtectedImage
+                              path={item.coverUrl}
+                              alt={`Portada de ${item.title}`}
+                              className="profile-recent-cover"
+                            />
+                          ) : (
+                            <div className="profile-recent-cover cover-placeholder">Sin portada</div>
+                          )}
+                          <div className="profile-recent-hover">
+                            <span className="profile-recent-hover-title">{item.title}</span>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )
+                )}
+                {recentTab === "books" && (
+                  recentSeriesQuery.data.books.length === 0 ? (
+                    <p className="muted-text">No hay books recientes.</p>
+                  ) : (
+                    <div className="profile-recent-grid">
+                      {recentSeriesQuery.data.books.map((item) => (
+                        <Link
+                          key={`book-${item.contentId}`}
+                          to={`/books/${item.contentId}`}
+                          className="profile-recent-card-item"
+                        >
+                          {item.coverUrl ? (
+                            <ProtectedImage
+                              path={item.coverUrl}
+                              alt={`Portada de ${item.title}`}
+                              className="profile-recent-cover"
+                            />
+                          ) : (
+                            <div className="profile-recent-cover cover-placeholder">Sin portada</div>
+                          )}
+                          <div className="profile-recent-hover">
+                            <span className="profile-recent-hover-title">{item.title}</span>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+          </article>
+        </div>
+
+        <article className="card profile-empty-card" />
       </div>
     </section>
   );
 }
-

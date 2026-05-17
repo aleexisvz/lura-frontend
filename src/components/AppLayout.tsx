@@ -19,7 +19,9 @@ export function AppLayout() {
     staleTime: 1000 * 60 * 5,
   });
 
-  const avatarInitial = (meQuery.data?.email ?? email ?? "?").charAt(0).toUpperCase();
+  const avatarInitial = (meQuery.data?.username ?? meQuery.data?.email ?? email ?? "?")
+    .charAt(0)
+    .toUpperCase();
 
   return (
     <div className="app-shell">
@@ -66,4 +68,3 @@ export function AppLayout() {
     </div>
   );
 }
-
