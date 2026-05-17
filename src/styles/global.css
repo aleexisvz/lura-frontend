@@ -928,14 +928,19 @@ select {
   text-align: center;
 }
 
+.volume-pages-badge--reading,
+.volume-pages-badge--completed {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
 .volume-pages-badge--reading {
   background: rgb(249 115 22 / 1);
-  font-size: 1rem;
 }
 
 .volume-pages-badge--completed {
   background: rgb(21 128 61 / 1);
-  font-size: 1rem;
 }
 
 .volume-hover-layer {

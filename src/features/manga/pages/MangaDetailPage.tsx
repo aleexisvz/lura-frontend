@@ -21,7 +21,7 @@ function VolumePosterCard({
 }) {
   const pagesCount = volume.pagesCount ?? 0;
   const volumeTitle =
-    volume.number > 0 ? `Vol. ${volume.number} ${volume.title}` : `Volumen ${volume.title}`;
+    volume.number > 0 ? volume.title : `Volumen ${volume.title}`;
   const startPage =
     progress?.volumeId === volume.id && progress.pageNumber > 1 ? progress.pageNumber : 1;
   const isInProgress = progress?.volumeId === volume.id && !isCompleted;
@@ -32,7 +32,19 @@ function VolumePosterCard({
       ? "volume-pages-badge volume-pages-badge--reading"
       : "volume-pages-badge";
 
-  const badgeLabel = isCompleted ? "✓" : isInProgress ? "📖" : String(pagesCount);
+  const BookIcon = () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 512 512"
+      width="12"
+      height="12"
+      fill="currentColor"
+      aria-hidden="true"
+      style={{ display: "inline", verticalAlign: "middle", flexShrink: 0 }}
+    >
+      <path d="M248 48c0-8.8-7.2-16-16-16H96C60.7 32 32 60.7 32 96v320c0 35.3 28.7 64 64 64h136c8.8 0 16-7.2 16-16V48zm16 0v416c0 8.8 7.2 16 16 16h136c35.3 0 64-28.7 64-64V96c0-35.3-28.7-64-64-64H280c-8.8 0-16 7.2-16 16z" />
+    </svg>
+  );
 
   return (
     <Link
@@ -46,7 +58,11 @@ function VolumePosterCard({
         <div className="volume-poster-image volume-poster-fallback">Sin portada</div>
       )}
 
-      <span className={badgeClass}>{badgeLabel}</span>
+      <span className={badgeClass}>
+        {isCompleted && <>✓ {pagesCount}</>}
+        {isInProgress && <><BookIcon /> {pagesCount}</>}
+        {!isCompleted && !isInProgress && pagesCount}
+      </span>
 
       <div className="volume-hover-layer">
         <p className="volume-hover-title">{volumeTitle}</p>

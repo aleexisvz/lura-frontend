@@ -173,7 +173,6 @@ export function MangaReaderPage() {
         await runGoToPage(safeNextPage);
       } finally {
         navigationInFlightRef.current = false;
-        lastNavigationTimeRef.current = Date.now();
       }
 
       const queuedPage = queuedPageRef.current;
