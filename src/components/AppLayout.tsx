@@ -26,40 +26,42 @@ export function AppLayout() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <Link to="/" className="brand">
-          Lura MVP
-        </Link>
-        <nav className="nav">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              className={({ isActive }) => (isActive ? "active-link" : "")}
-              to={item.to}
-            >
-              {item.label}
-            </NavLink>
-          ))}
-          {role === "ADMIN" && (
-            <NavLink className={({ isActive }) => (isActive ? "active-link" : "")} to="/admin">
-              Admin
-            </NavLink>
-          )}
-        </nav>
-        <div className="topbar-actions">
-          <Link className="topbar-avatar-link" to="/profile" aria-label="Abrir perfil">
-            {meQuery.data?.profileImageUrl ? (
-              <ProtectedImage
-                path={meQuery.data.profileImageUrl}
-                alt="Foto de perfil"
-                className="topbar-avatar-image"
-              />
-            ) : (
-              <span className="topbar-avatar-fallback">{avatarInitial}</span>
-            )}
+        <div className="topbar-inner">
+          <Link to="/" className="brand">
+            Lura MVP
           </Link>
-          <button className="secondary-button" onClick={logout} type="button">
-            Cerrar sesion
-          </button>
+          <nav className="nav">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                className={({ isActive }) => (isActive ? "active-link" : "")}
+                to={item.to}
+              >
+                {item.label}
+              </NavLink>
+            ))}
+            {role === "ADMIN" && (
+              <NavLink className={({ isActive }) => (isActive ? "active-link" : "")} to="/admin">
+                Admin
+              </NavLink>
+            )}
+          </nav>
+          <div className="topbar-actions">
+            <Link className="topbar-avatar-link" to="/profile" aria-label="Abrir perfil">
+              {meQuery.data?.profileImageUrl ? (
+                <ProtectedImage
+                  path={meQuery.data.profileImageUrl}
+                  alt="Foto de perfil"
+                  className="topbar-avatar-image"
+                />
+              ) : (
+                <span className="topbar-avatar-fallback">{avatarInitial}</span>
+              )}
+            </Link>
+            <button className="secondary-button" onClick={logout} type="button">
+              Cerrar sesion
+            </button>
+          </div>
         </div>
       </header>
       <main className="container">
