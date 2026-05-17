@@ -1,21 +1,42 @@
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { getMangaById, getProgress, getVolumes } from "@/features/manga/api";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import { getMangaById, getProgress, getVolumeCompletion, getVolumes } from "@/features/manga/api";
 import { ErrorBox } from "@/components/ErrorBox";
 import { Loading } from "@/components/Loading";
-import { Volume } from "@/types/domain";
+import { MangaProgress, Volume } from "@/types/domain";
 import { ProtectedImage } from "@/components/ProtectedImage";
 import { getDemoMangaType, getDemoStatus } from "@/lib/demoFilters";
 
-function VolumePosterCard({ mangaId, volume }: { mangaId: string; volume: Volume }) {
+function VolumePosterCard({
+  mangaId,
+  volume,
+  progress,
+  isCompleted,
+}: {
+  mangaId: string;
+  volume: Volume;
+  progress: MangaProgress | null | undefined;
+  isCompleted: boolean;
+}) {
   const pagesCount = volume.pagesCount ?? 0;
   const volumeTitle =
     volume.number > 0 ? `Vol. ${volume.number} ${volume.title}` : `Volumen ${volume.title}`;
+  const startPage =
+    progress?.volumeId === volume.id && progress.pageNumber > 1 ? progress.pageNumber : 1;
+  const isInProgress = progress?.volumeId === volume.id && !isCompleted;
+
+  const badgeClass = isCompleted
+    ? "volume-pages-badge volume-pages-badge--completed"
+    : isInProgress
+      ? "volume-pages-badge volume-pages-badge--reading"
+      : "volume-pages-badge";
+
+  const badgeLabel = isCompleted ? "✓" : isInProgress ? "📖" : String(pagesCount);
 
   return (
     <Link
-      to={`/manga/${mangaId}/volumes/${volume.id}/pages`}
+      to={`/reader/${mangaId}/${volume.id}/${startPage}`}
       className="volume-poster-card"
       aria-label={`Abrir ${volumeTitle}`}
     >
@@ -25,7 +46,7 @@ function VolumePosterCard({ mangaId, volume }: { mangaId: string; volume: Volume
         <div className="volume-poster-image volume-poster-fallback">Sin portada</div>
       )}
 
-      <span className="volume-pages-badge">{pagesCount}</span>
+      <span className={badgeClass}>{badgeLabel}</span>
 
       <div className="volume-hover-layer">
         <p className="volume-hover-title">{volumeTitle}</p>
@@ -55,6 +76,21 @@ export function MangaDetailPage() {
     queryFn: () => getProgress(mangaId),
     enabled: Boolean(mangaId),
   });
+
+  const completionQueries = useQueries({
+    queries: (volumesQuery.data ?? []).map((volume) => ({
+      queryKey: ["volume-completion", mangaId, volume.id],
+      queryFn: () => getVolumeCompletion(mangaId, volume.id),
+      enabled: Boolean(mangaId && volumesQuery.data),
+    })),
+  });
+
+  const completionMap = useMemo(() => {
+    const volumes = volumesQuery.data ?? [];
+    return Object.fromEntries(
+      volumes.map((volume, i) => [volume.id, completionQueries[i]?.data?.completed ?? false])
+    );
+  }, [volumesQuery.data, completionQueries]);
 
   const demoType = mangaQuery.data ? getDemoMangaType(mangaQuery.data.id) : "MANGA";
   const demoStatus = mangaQuery.data ? getDemoStatus(mangaQuery.data.id) : "EN_EMISION";
@@ -128,7 +164,7 @@ export function MangaDetailPage() {
                 </div>
               )}
 
-              {progressQuery.data?.volumeId && !progressQuery.data.completed && (
+              {progressQuery.data?.volumeId && (
                 <Link
                   className="manga-continue-link"
                   to={`/reader/${mangaId}/${progressQuery.data.volumeId}/${progressQuery.data.pageNumber}`}
@@ -161,7 +197,13 @@ export function MangaDetailPage() {
 
         <div className="volume-poster-grid">
           {orderedVolumes.map((volume: Volume) => (
-            <VolumePosterCard key={volume.id} mangaId={mangaId} volume={volume} />
+            <VolumePosterCard
+              key={volume.id}
+              mangaId={mangaId}
+              volume={volume}
+              progress={progressQuery.data}
+              isCompleted={completionMap[volume.id] ?? false}
+            />
           ))}
         </div>
       </article>

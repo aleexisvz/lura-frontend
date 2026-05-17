@@ -6,7 +6,6 @@ import { RegisterPage } from "@/features/auth/pages/RegisterPage";
 import { HomePage } from "@/features/reading/pages/HomePage";
 import { MangaListPage } from "@/features/manga/pages/MangaListPage";
 import { MangaDetailPage } from "@/features/manga/pages/MangaDetailPage";
-import { VolumePagesPage } from "@/features/manga/pages/VolumePagesPage";
 import { MangaReaderPage } from "@/features/manga/pages/MangaReaderPage";
 import { BooksListPage } from "@/features/books/pages/BooksListPage";
 import { BookDetailPage } from "@/features/books/pages/BookDetailPage";
@@ -26,10 +25,6 @@ export function AppRouter() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/manga" element={<MangaListPage />} />
           <Route path="/manga/:mangaId" element={<MangaDetailPage />} />
-          <Route
-            path="/manga/:mangaId/volumes/:volumeId/pages"
-            element={<VolumePagesPage />}
-          />
           <Route
             path="/reader/:mangaId/:volumeId/:pageNumber"
             element={<MangaReaderPage />}
