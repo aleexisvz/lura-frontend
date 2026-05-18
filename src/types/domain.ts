@@ -62,6 +62,11 @@ export type ContinueReadingItem = {
   volumeId: string;
   pageNumber: number;
   mangaTitle?: string;
+  volumeTitle?: string;
+  volumeNumber?: number;
+  totalPages?: number;
+  progressPercent?: number;
+  coverUrl?: string | null;
 };
 
 export type ReadingStats = {

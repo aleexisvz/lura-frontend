@@ -331,7 +331,8 @@ select {
 
 .profile-stats-card,
 .profile-recent-card,
-.profile-empty-card {
+.profile-empty-card,
+.profile-last-read-card {
   background: #0d131f;
   border-color: #273551;
   border-radius: 12px;
@@ -350,11 +351,112 @@ select {
   padding: 0;
 }
 
+.profile-last-read-card {
+  min-height: 460px;
+  padding: 0.85rem;
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+}
+
 .profile-stats-card h2,
-.profile-recent-card h2 {
+.profile-recent-card h2,
+.profile-last-read-card h2 {
   margin: 0 0 0.6rem;
   font-size: 0.95rem;
   color: #f3f7ff;
+}
+
+.profile-last-read-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.profile-last-read-header h2 {
+  margin: 0 !important;
+}
+
+.profile-last-read-list {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.profile-last-read-item {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+  color: #e7f1ff;
+  background: linear-gradient(90deg, rgba(28, 36, 53, 0.8), rgba(20, 26, 40, 0.85));
+  border: 1px solid #2a3b5a;
+  border-radius: 10px;
+  padding: 0.45rem 0.55rem;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.profile-last-read-item:hover {
+  border-color: #446a9f;
+  transform: translateY(-1px);
+}
+
+.profile-last-read-cover-wrap {
+  width: 58px;
+}
+
+.profile-last-read-cover {
+  width: 58px;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border: 1px solid #2b4062;
+  border-radius: 8px;
+}
+
+.profile-last-read-cover.cover-placeholder {
+  width: 58px;
+  height: auto;
+  margin-bottom: 0;
+  border-radius: 8px;
+  font-size: 0.62rem;
+}
+
+.profile-last-read-body {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.profile-last-read-body h3 {
+  margin: 0;
+  color: #f3f7ff;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.profile-last-read-chapter {
+  margin: 0;
+  color: #b7c8e6;
+  font-size: 0.78rem;
+}
+
+.profile-last-read-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: #1e2433;
+  overflow: hidden;
+}
+
+.profile-last-read-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #7a3ff0 0%, #b47dff 100%);
+}
+
+.profile-last-read-percent {
+  margin: 0;
+  color: #99aac7;
+  font-size: 0.78rem;
 }
 
 .profile-recent-header {

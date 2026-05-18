@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ErrorBox } from "@/components/ErrorBox";
 import { Loading } from "@/components/Loading";
 import { ProtectedImage } from "@/components/ProtectedImage";
-import { getReadingStats, getRecentSeries } from "@/features/reading/api";
+import { getContinueReading, getReadingStats, getRecentSeries } from "@/features/reading/api";
 import { getMe } from "@/features/users/api";
 
 function formatRegistrationDate(createdAt: string): string {
@@ -39,6 +39,25 @@ function formatReadingTimeByTier(totalSeconds: number): string {
   return `${days} dias ${remainingHours} horas`;
 }
 
+function clampPercent(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function resolveVolumeLabel(item: {
+  volumeTitle?: string;
+  volumeNumber?: number;
+  volumeId: string;
+}) {
+  if (item.volumeNumber && item.volumeNumber > 0) {
+    return `Capitulo ${item.volumeNumber}`;
+  }
+  if (item.volumeTitle && item.volumeTitle.trim()) {
+    return item.volumeTitle;
+  }
+  return `Volumen ${item.volumeId}`;
+}
+
 export function ProfilePage() {
   const meQuery = useQuery({
     queryKey: ["me"],
@@ -55,6 +74,11 @@ export function ProfilePage() {
     queryFn: () => getRecentSeries(12),
   });
 
+  const continueReadingQuery = useQuery({
+    queryKey: ["continue-reading"],
+    queryFn: getContinueReading,
+  });
+
   const username = meQuery.data?.username || "usuario";
   const registrationLabel = formatRegistrationDate(meQuery.data?.createdAt ?? "");
   const readingTime = formatReadingTimeByTier(statsQuery.data?.totalSeconds ?? 0);
@@ -66,6 +90,26 @@ export function ProfilePage() {
     const pages = statsQuery.data?.totalPagesRead ?? 0;
     return `Series: ${series} | Volumenes: ${volumes} | Paginas: ${pages}`;
   }, [statsQuery.data]);
+
+  const lastReadVolumeItems = useMemo(
+    () =>
+      (continueReadingQuery.data ?? []).map((item) => {
+        const totalPages = item.totalPages ?? 0;
+        const derivedPercent =
+          totalPages > 0 ? clampPercent((item.pageNumber / totalPages) * 100) : 0;
+        const progressPercent =
+          item.progressPercent && item.progressPercent > 0
+            ? clampPercent(item.progressPercent)
+            : derivedPercent;
+
+        return {
+          ...item,
+          progressPercent,
+          chapterLabel: resolveVolumeLabel(item),
+        };
+      }),
+    [continueReadingQuery.data]
+  );
 
   return (
     <section className="profile-v2-page">
@@ -198,7 +242,54 @@ export function ProfilePage() {
           </article>
         </div>
 
-        <article className="card profile-empty-card" />
+        <article className="card profile-last-read-card">
+          <div className="profile-last-read-header">
+            <h2>Ultimos Capitulos Leidos</h2>
+          </div>
+
+          {continueReadingQuery.isLoading && <Loading text="Cargando lecturas en curso..." />}
+          {continueReadingQuery.isError && <ErrorBox error={continueReadingQuery.error} />}
+
+          {!continueReadingQuery.isLoading &&
+            !continueReadingQuery.isError &&
+            lastReadVolumeItems.length === 0 && (
+              <p className="muted-text">No hay capitulos en curso por ahora.</p>
+            )}
+
+          <div className="profile-last-read-list">
+            {lastReadVolumeItems.map((item) => (
+              <Link
+                key={`${item.mangaId}-${item.volumeId}`}
+                to={`/reader/${item.mangaId}/${item.volumeId}/${item.pageNumber}`}
+                className="profile-last-read-item"
+              >
+                <div className="profile-last-read-cover-wrap">
+                  {item.coverUrl ? (
+                    <ProtectedImage
+                      path={item.coverUrl}
+                      alt={`Portada de ${item.mangaTitle || "manga"}`}
+                      className="profile-last-read-cover"
+                    />
+                  ) : (
+                    <div className="profile-last-read-cover cover-placeholder">Sin portada</div>
+                  )}
+                </div>
+
+                <div className="profile-last-read-body">
+                  <h3>{item.mangaTitle || "Sin titulo"}</h3>
+                  <p className="profile-last-read-chapter">{item.chapterLabel}</p>
+                  <div className="profile-last-read-track">
+                    <span
+                      className="profile-last-read-fill"
+                      style={{ width: `${item.progressPercent}%` }}
+                    />
+                  </div>
+                  <p className="profile-last-read-percent">{item.progressPercent}% completado</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </article>
       </div>
     </section>
   );

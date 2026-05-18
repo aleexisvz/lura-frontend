@@ -75,6 +75,20 @@ export function MangaReaderPage() {
   }, [mangaId, volumeId]);
 
   useEffect(() => {
+    if (!mangaId || !volumeId || currentPage < 1) {
+      return;
+    }
+
+    // Register current volume in active reading list even before page navigation.
+    saveProgressMutation.mutate({
+      mangaId,
+      volumeId,
+      pageNumber: currentPage
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mangaId, volumeId, currentPage]);
+
+  useEffect(() => {
     if (!imageQuery.data) {
       return;
     }

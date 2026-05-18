@@ -15,7 +15,12 @@ export async function getContinueReading(): Promise<ContinueReadingItem[]> {
       mangaId: pickString(source, ["mangaId", "id"]),
       volumeId: pickString(source, ["volumeId"]),
       pageNumber: pickNumber(source, ["pageNumber", "currentPage", "page"], 1),
-      mangaTitle: pickString(source, ["mangaTitle", "title"])
+      mangaTitle: pickString(source, ["mangaTitle", "title"]),
+      volumeTitle: pickString(source, ["volumeTitle", "chapterLabel", "volumeName"], ""),
+      volumeNumber: pickNumber(source, ["volumeNumber", "chapterNumber"], 0),
+      totalPages: pickNumber(source, ["totalPages", "pagesCount", "pageCount"], 0),
+      progressPercent: pickNumber(source, ["progressPercent", "progress"], 0),
+      coverUrl: pickString(source, ["coverUrl", "volumeCoverUrl"], "") || null
     };
   });
 }
