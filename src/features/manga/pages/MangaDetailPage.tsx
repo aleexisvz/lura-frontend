@@ -2,29 +2,30 @@ import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { getMangaById, getProgress, getVolumeCompletion, getVolumes } from "@/features/manga/api";
+import { getContinueReading } from "@/features/reading/api";
 import { ErrorBox } from "@/components/ErrorBox";
 import { Loading } from "@/components/Loading";
-import { MangaProgress, Volume } from "@/types/domain";
+import { Volume } from "@/types/domain";
 import { ProtectedImage } from "@/components/ProtectedImage";
 import { getDemoMangaType, getDemoStatus } from "@/lib/demoFilters";
 
 function VolumePosterCard({
   mangaId,
   volume,
-  progress,
+  inProgressPage,
+  isInProgress,
   isCompleted,
 }: {
   mangaId: string;
   volume: Volume;
-  progress: MangaProgress | null | undefined;
+  inProgressPage: number | null;
+  isInProgress: boolean;
   isCompleted: boolean;
 }) {
   const pagesCount = volume.pagesCount ?? 0;
   const volumeTitle =
     volume.number > 0 ? volume.title : `Volumen ${volume.title}`;
-  const startPage =
-    progress?.volumeId === volume.id && progress.pageNumber > 1 ? progress.pageNumber : 1;
-  const isInProgress = progress?.volumeId === volume.id && !isCompleted;
+  const startPage = inProgressPage && inProgressPage > 1 ? inProgressPage : 1;
 
   const badgeClass = isCompleted
     ? "volume-pages-badge volume-pages-badge--completed"
@@ -93,6 +94,11 @@ export function MangaDetailPage() {
     enabled: Boolean(mangaId),
   });
 
+  const continueReadingQuery = useQuery({
+    queryKey: ["continue-reading"],
+    queryFn: getContinueReading,
+  });
+
   const completionQueries = useQueries({
     queries: (volumesQuery.data ?? []).map((volume) => ({
       queryKey: ["volume-completion", mangaId, volume.id],
@@ -107,6 +113,24 @@ export function MangaDetailPage() {
       volumes.map((volume, i) => [volume.id, completionQueries[i]?.data?.completed ?? false])
     );
   }, [volumesQuery.data, completionQueries]);
+
+  const inProgressPageByVolumeId = useMemo(() => {
+    const entries = continueReadingQuery.data ?? [];
+    const map = new Map<string, number>();
+
+    entries.forEach((entry) => {
+      if (entry.mangaId !== mangaId) {
+        return;
+      }
+      if (!entry.volumeId) {
+        return;
+      }
+      const page = Math.max(1, entry.pageNumber || 1);
+      map.set(entry.volumeId, page);
+    });
+
+    return map;
+  }, [continueReadingQuery.data, mangaId]);
 
   const demoType = mangaQuery.data ? getDemoMangaType(mangaQuery.data.id) : "MANGA";
   const demoStatus = mangaQuery.data ? getDemoStatus(mangaQuery.data.id) : "EN_EMISION";
@@ -217,7 +241,8 @@ export function MangaDetailPage() {
               key={volume.id}
               mangaId={mangaId}
               volume={volume}
-              progress={progressQuery.data}
+              inProgressPage={inProgressPageByVolumeId.get(volume.id) ?? null}
+              isInProgress={inProgressPageByVolumeId.has(volume.id) && !(completionMap[volume.id] ?? false)}
               isCompleted={completionMap[volume.id] ?? false}
             />
           ))}

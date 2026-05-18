@@ -10,7 +10,11 @@ import {
   markVolumeCompleted,
   saveProgress
 } from "@/features/manga/api";
-import { endReadingSession, startReadingSession } from "@/features/reading/api";
+import {
+  endReadingSession,
+  endReadingSessionKeepalive,
+  startReadingSession
+} from "@/features/reading/api";
 import { ReaderShell } from "@/features/reader/components/ReaderShell";
 import { useReaderHotkeys } from "@/features/reader/hooks/useReaderHotkeys";
 
@@ -103,12 +107,16 @@ export function MangaReaderPage() {
     sessionIdRef.current = sessionId;
   }, [sessionId]);
 
-  const endSessionIfNeeded = useCallback(() => {
+  const endSessionIfNeeded = useCallback((preferKeepalive = false) => {
     const activeSessionId = sessionIdRef.current;
     if (!activeSessionId || sessionEndRequestedRef.current) {
       return;
     }
     sessionEndRequestedRef.current = true;
+    if (preferKeepalive) {
+      endReadingSessionKeepalive(activeSessionId);
+      return;
+    }
     void endReadingSession(activeSessionId).catch(() => {
       // avoid surfacing cleanup errors to UI
     });
@@ -117,6 +125,26 @@ export function MangaReaderPage() {
   useEffect(() => {
     return () => {
       endSessionIfNeeded();
+    };
+  }, [endSessionIfNeeded]);
+
+  useEffect(() => {
+    const handlePageHide = () => {
+      endSessionIfNeeded(true);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        endSessionIfNeeded(true);
+      }
+    };
+
+    window.addEventListener("pagehide", handlePageHide);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("pagehide", handlePageHide);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [endSessionIfNeeded]);
 
@@ -247,7 +275,7 @@ export function MangaReaderPage() {
       isFullscreen={isFullscreen}
       isBusy={saveProgressMutation.isPending}
       onClose={() => {
-        endSessionIfNeeded();
+        endSessionIfNeeded(true);
         navigate(`/manga/${mangaId}`);
       }}
       onPrev={goPrev}

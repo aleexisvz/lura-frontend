@@ -1,4 +1,6 @@
 import { apiClient } from "@/lib/apiClient";
+import { API_BASE_URL } from "@/lib/config";
+import { getToken } from "@/lib/storage";
 import {
   pickNumber,
   pickString,
@@ -79,5 +81,26 @@ export async function startReadingSession(payload: {
 export async function endReadingSession(sessionId: string) {
   return apiClient.request(`/reading/sessions/${sessionId}/end`, {
     method: "POST"
+  });
+}
+
+export function endReadingSessionKeepalive(sessionId: string) {
+  if (!sessionId) {
+    return;
+  }
+
+  const headers = new Headers();
+  const token = getToken();
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  void fetch(`${API_BASE_URL}/reading/sessions/${sessionId}/end`, {
+    method: "POST",
+    credentials: "include",
+    headers,
+    keepalive: true,
+  }).catch(() => {
+    // no-op: this is best-effort cleanup during page lifecycle events
   });
 }
