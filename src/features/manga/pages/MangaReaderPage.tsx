@@ -17,6 +17,7 @@ import {
 } from "@/features/reading/api";
 import { ReaderShell } from "@/features/reader/components/ReaderShell";
 import { useReaderHotkeys } from "@/features/reader/hooks/useReaderHotkeys";
+import { useAFKTimer } from "@/features/reader/hooks/useAFKTimer";
 
 const NAVIGATION_INTERVAL_MS = 1000;
 
@@ -28,6 +29,7 @@ export function MangaReaderPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [sliderPage, setSliderPage] = useState(currentPage);
+  const [isAfkPaused, setIsAfkPaused] = useState(false);
   const navigationInFlightRef = useRef(false);
   const queuedPageRef = useRef<number | null>(null);
   const sessionIdRef = useRef<string | null>(null);
@@ -121,6 +123,24 @@ export function MangaReaderPage() {
       // avoid surfacing cleanup errors to UI
     });
   }, []);
+
+  const onAfkExpired = useCallback(() => {
+    const activeSessionId = sessionIdRef.current;
+    if (activeSessionId && !sessionEndRequestedRef.current) {
+      sessionEndRequestedRef.current = true;
+      void endReadingSession(activeSessionId).catch(() => {
+        // best-effort: AFK session end
+      });
+      setSessionId(null);
+      sessionIdRef.current = null;
+    }
+    setIsAfkPaused(true);
+  }, []);
+
+  const { isWarning, secondsRemaining, resetTimer: resetAFKTimer } = useAFKTimer({
+    onExpired: onAfkExpired,
+    disabled: isAfkPaused,
+  });
 
   useEffect(() => {
     return () => {
@@ -233,17 +253,20 @@ export function MangaReaderPage() {
 
   const goNext = useCallback(() => {
     if (currentPage < maxPage) {
+      resetAFKTimer();
       void goToPage(currentPage + 1);
     }
-  }, [currentPage, goToPage, maxPage]);
+  }, [currentPage, goToPage, maxPage, resetAFKTimer]);
 
   const goPrev = useCallback(() => {
     if (currentPage > minPage) {
+      resetAFKTimer();
       void goToPage(currentPage - 1);
     }
-  }, [currentPage, goToPage, minPage]);
+  }, [currentPage, goToPage, minPage, resetAFKTimer]);
 
   const toggleFullscreen = useCallback(async () => {
+    resetAFKTimer();
     try {
       if (document.fullscreenElement) {
         await document.exitFullscreen();
@@ -253,7 +276,7 @@ export function MangaReaderPage() {
     } catch {
       // ignore browser fullscreen API errors
     }
-  }, []);
+  }, [resetAFKTimer]);
 
   useReaderHotkeys({
     onNext: goNext,
@@ -284,6 +307,7 @@ export function MangaReaderPage() {
         void toggleFullscreen();
       }}
       onSliderChange={(nextPage) => {
+        resetAFKTimer();
         void goToPage(nextPage);
       }}
     >
@@ -292,6 +316,41 @@ export function MangaReaderPage() {
       {imageQuery.isLoading && <Loading text="Cargando imagen protegida..." />}
       {imageQuery.isError && <ErrorBox error={imageQuery.error} />}
       {imageUrl && <img src={imageUrl} alt={`Pagina ${currentPage}`} className="reader-image" />}
+
+      {isWarning && !isAfkPaused && (
+        <div className="reader-afk-overlay" role="alertdialog" aria-modal="true" aria-label="Aviso de inactividad">
+          <div className="reader-afk-box">
+            <p className="reader-afk-title">¿Sigues leyendo?</p>
+            <p className="reader-afk-countdown">
+              La sesión se pausará en <strong>{secondsRemaining}s</strong>
+            </p>
+            <button type="button" className="reader-afk-btn" onClick={resetAFKTimer}>
+              Sí, continuar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isAfkPaused && (
+        <div className="reader-afk-overlay" role="alertdialog" aria-modal="true" aria-label="Sesión pausada">
+          <div className="reader-afk-box">
+            <p className="reader-afk-title">Sesión pausada</p>
+            <p className="reader-afk-text">Tu sesión fue terminada por inactividad. Tu progreso fue guardado.</p>
+            <button
+              type="button"
+              className="reader-afk-btn"
+              onClick={() => {
+                sessionEndRequestedRef.current = false;
+                setIsAfkPaused(false);
+                resetAFKTimer();
+                startSessionMutation.mutate({ mangaId, volumeId, pageNumber: currentPage });
+              }}
+            >
+              Reanudar lectura
+            </button>
+          </div>
+        </div>
+      )}
     </ReaderShell>
   );
 }

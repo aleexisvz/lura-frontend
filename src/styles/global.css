@@ -777,6 +777,68 @@ select {
   margin-top: 0.35rem;
 }
 
+/* AFK warning overlay & pause modal */
+.reader-afk-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.72);
+  z-index: 102;
+}
+
+.reader-afk-box {
+  width: min(400px, calc(100vw - 2rem));
+  background: #111b2b;
+  border: 1px solid #2c4265;
+  border-radius: 12px;
+  padding: 1.75rem 1.5rem;
+  display: grid;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+.reader-afk-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #f1f6ff;
+}
+
+.reader-afk-countdown {
+  margin: 0;
+  color: #a8bfe8;
+  font-size: 0.95rem;
+}
+
+.reader-afk-countdown strong {
+  color: #f1f6ff;
+}
+
+.reader-afk-text {
+  margin: 0;
+  color: #a8bfe8;
+  font-size: 0.9rem;
+}
+
+.reader-afk-btn {
+  margin-top: 0.25rem;
+  padding: 0.6rem 1.5rem;
+  border-radius: 8px;
+  border: none;
+  background: #2563eb;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.reader-afk-btn:hover {
+  background: #1d4ed8;
+}
+
 .cover-image {
   width: 100%;
   height: 240px;
