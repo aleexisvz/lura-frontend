@@ -40,6 +40,11 @@ export async function getReadingStats(): Promise<ReadingStats> {
     totalMangasRead: pickNumber(source, ["totalMangasRead", "mangasRead"], 0),
     totalSeriesRead: pickNumber(source, ["totalSeriesRead", "seriesRead"], 0),
     totalBooksRead: pickNumber(source, ["totalBooksRead", "booksRead"], 0),
+    readingLevel: Math.max(1, pickNumber(source, ["readingLevel"], 1)),
+    readingXpTotal: Math.max(0, pickNumber(source, ["readingXpTotal"], 0)),
+    xpInLevel: Math.max(0, pickNumber(source, ["xpInLevel"], 0)),
+    xpToNextLevel: Math.max(1, pickNumber(source, ["xpToNextLevel"], 20)),
+    xpProgressPercent: Math.max(0, Math.min(100, pickNumber(source, ["xpProgressPercent"], 0))),
   };
 }
 

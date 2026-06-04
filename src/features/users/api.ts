@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/apiClient";
-import { pickString, unwrapObject } from "@/lib/adapters";
+import { pickNumber, pickString, unwrapObject } from "@/lib/adapters";
 import type { Role, UserProfile } from "@/types/domain";
 
 const MAX_DIMENSION = 768;
@@ -20,6 +20,8 @@ export async function getMe(): Promise<UserProfile> {
     role: (role === "ADMIN" ? "ADMIN" : "USER") as Role,
     createdAt,
     profileImageUrl: profileImageUrl || null,
+    readingXpTotal: Math.max(0, pickNumber(source, ["readingXpTotal"], 0)),
+    readingLevel: Math.max(1, pickNumber(source, ["readingLevel"], 1)),
   };
 }
 

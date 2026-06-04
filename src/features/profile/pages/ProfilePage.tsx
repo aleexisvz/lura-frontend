@@ -82,6 +82,7 @@ export function ProfilePage() {
   const username = meQuery.data?.username || "usuario";
   const registrationLabel = formatRegistrationDate(meQuery.data?.createdAt ?? "");
   const readingTime = formatReadingTimeByTier(statsQuery.data?.totalSeconds ?? 0);
+  const readingLevel = meQuery.data?.readingLevel ?? statsQuery.data?.readingLevel ?? 1;
   const [recentTab, setRecentTab] = useState<"manga" | "books">("manga");
 
   const statsLine = useMemo(() => {
@@ -90,6 +91,13 @@ export function ProfilePage() {
     const pages = statsQuery.data?.totalPagesRead ?? 0;
     return `Series: ${series} | Volumenes: ${volumes} | Paginas: ${pages}`;
   }, [statsQuery.data]);
+
+  const xpLine = useMemo(() => {
+    const level = statsQuery.data?.readingLevel ?? meQuery.data?.readingLevel ?? 1;
+    const xpTotal = statsQuery.data?.readingXpTotal ?? meQuery.data?.readingXpTotal ?? 0;
+    const progress = statsQuery.data?.xpProgressPercent ?? 0;
+    return `Nivel ${level} · XP ${xpTotal} (${progress}% al siguiente)`;
+  }, [meQuery.data?.readingLevel, meQuery.data?.readingXpTotal, statsQuery.data]);
 
   const lastReadVolumeItems = useMemo(
     () =>
@@ -127,7 +135,7 @@ export function ProfilePage() {
                 {username.charAt(0).toUpperCase()}
               </div>
             )}
-            <span className="profile-level-badge">7</span>
+            <span className="profile-level-badge">{readingLevel}</span>
           </div>
 
           <div className="profile-hero-meta">
@@ -153,6 +161,7 @@ export function ProfilePage() {
                 <p>
                   Tiempo de lectura: <strong>{readingTime}</strong>
                 </p>
+                <p>{xpLine}</p>
               </div>
             )}
           </article>

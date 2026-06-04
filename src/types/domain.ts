@@ -13,6 +13,8 @@ export type UserProfile = {
   role: Role;
   createdAt: string;
   profileImageUrl: string | null;
+  readingXpTotal: number;
+  readingLevel: number;
 };
 
 export type TagScope = "MANGA" | "BOOK";
@@ -78,6 +80,11 @@ export type ReadingStats = {
   totalMangasRead: number;
   totalSeriesRead: number;
   totalBooksRead: number;
+  readingLevel: number;
+  readingXpTotal: number;
+  xpInLevel: number;
+  xpToNextLevel: number;
+  xpProgressPercent: number;
 };
 
 export type RecentSeriesItem = {
