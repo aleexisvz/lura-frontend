@@ -60,6 +60,10 @@ export type MangaProgress = {
 };
 
 export type ContinueReadingItem = {
+  contentType?: "MANGA" | "BOOK";
+  bookId?: string;
+  title?: string;
+  chapterLabel?: string;
   mangaId: string;
   volumeId: string;
   pageNumber: number;
@@ -69,6 +73,7 @@ export type ContinueReadingItem = {
   totalPages?: number;
   progressPercent?: number;
   coverUrl?: string | null;
+  updatedAt?: string;
 };
 
 export type ReadingStats = {

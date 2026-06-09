@@ -13,7 +13,12 @@ export async function getContinueReading(): Promise<ContinueReadingItem[]> {
   const response = await apiClient.request<unknown>("/users/me/continue-reading");
   return unwrapArray(response).map((entry) => {
     const source = unwrapObject(entry);
+    const contentType = pickString(source, ["contentType"], "MANGA");
     return {
+      contentType: contentType === "BOOK" ? "BOOK" : "MANGA",
+      bookId: pickString(source, ["bookId"]),
+      title: pickString(source, ["title"]),
+      chapterLabel: pickString(source, ["chapterLabel", "sectionLabel"]),
       mangaId: pickString(source, ["mangaId", "id"]),
       volumeId: pickString(source, ["volumeId"]),
       pageNumber: pickNumber(source, ["pageNumber", "currentPage", "page"], 1),
@@ -22,7 +27,8 @@ export async function getContinueReading(): Promise<ContinueReadingItem[]> {
       volumeNumber: pickNumber(source, ["volumeNumber", "chapterNumber"], 0),
       totalPages: pickNumber(source, ["totalPages", "pagesCount", "pageCount"], 0),
       progressPercent: pickNumber(source, ["progressPercent", "progress"], 0),
-      coverUrl: pickString(source, ["coverUrl", "volumeCoverUrl"], "") || null
+      coverUrl: pickString(source, ["coverUrl", "volumeCoverUrl"], "") || null,
+      updatedAt: pickString(source, ["updatedAt"]),
     };
   });
 }

@@ -85,6 +85,7 @@ export function ProfilePage() {
   const readingLevel = meQuery.data?.readingLevel ?? statsQuery.data?.readingLevel ?? 1;
   const [recentTab, setRecentTab] = useState<"manga" | "books">("manga");
   const [statsTab, setStatsTab] = useState<"manga" | "books">("manga");
+  const [lastReadTab, setLastReadTab] = useState<"manga" | "books">("manga");
 
   const statsLine = useMemo(() => {
     const pages = statsQuery.data?.totalPagesRead ?? 0;
@@ -119,10 +120,21 @@ export function ProfilePage() {
         return {
           ...item,
           progressPercent,
-          chapterLabel: resolveVolumeLabel(item),
+          chapterLabel:
+            item.contentType === "BOOK"
+              ? item.chapterLabel || "Lectura en progreso"
+              : resolveVolumeLabel(item),
         };
       }),
     [continueReadingQuery.data]
+  );
+
+  const filteredLastReadItems = useMemo(
+    () =>
+      lastReadVolumeItems.filter((item) =>
+        lastReadTab === "books" ? item.contentType === "BOOK" : item.contentType !== "BOOK"
+      ),
+    [lastReadTab, lastReadVolumeItems]
   );
 
   return (
@@ -278,6 +290,22 @@ export function ProfilePage() {
         <article className="card profile-last-read-card">
           <div className="profile-last-read-header">
             <h2>Ultimos Capitulos Leidos</h2>
+            <div className="profile-recent-tabs">
+              <button
+                type="button"
+                className={`profile-recent-tab${lastReadTab === "manga" ? " active" : ""}`}
+                onClick={() => setLastReadTab("manga")}
+              >
+                Manga
+              </button>
+              <button
+                type="button"
+                className={`profile-recent-tab${lastReadTab === "books" ? " active" : ""}`}
+                onClick={() => setLastReadTab("books")}
+              >
+                Books
+              </button>
+            </div>
           </div>
 
           {continueReadingQuery.isLoading && <Loading text="Cargando lecturas en curso..." />}
@@ -285,22 +313,34 @@ export function ProfilePage() {
 
           {!continueReadingQuery.isLoading &&
             !continueReadingQuery.isError &&
-            lastReadVolumeItems.length === 0 && (
-              <p className="muted-text">No hay capitulos en curso por ahora.</p>
+            filteredLastReadItems.length === 0 && (
+              <p className="muted-text">
+                {lastReadTab === "books"
+                  ? "No hay books en curso por ahora."
+                  : "No hay capitulos en curso por ahora."}
+              </p>
             )}
 
           <div className="profile-last-read-list">
-            {lastReadVolumeItems.map((item) => (
+            {filteredLastReadItems.map((item) => (
               <Link
-                key={`${item.mangaId}-${item.volumeId}`}
-                to={`/reader/${item.mangaId}/${item.volumeId}/${item.pageNumber}`}
+                key={
+                  item.contentType === "BOOK"
+                    ? `book-${item.bookId}`
+                    : `${item.mangaId}-${item.volumeId}`
+                }
+                to={
+                  item.contentType === "BOOK"
+                    ? `/books/${item.bookId}/read`
+                    : `/reader/${item.mangaId}/${item.volumeId}/${item.pageNumber}`
+                }
                 className="profile-last-read-item"
               >
                 <div className="profile-last-read-cover-wrap">
                   {item.coverUrl ? (
                     <ProtectedImage
                       path={item.coverUrl}
-                      alt={`Portada de ${item.mangaTitle || "manga"}`}
+                      alt={`Portada de ${item.contentType === "BOOK" ? (item.title || "book") : (item.mangaTitle || "manga")}`}
                       className="profile-last-read-cover"
                     />
                   ) : (
@@ -309,7 +349,7 @@ export function ProfilePage() {
                 </div>
 
                 <div className="profile-last-read-body">
-                  <h3>{item.mangaTitle || "Sin titulo"}</h3>
+                  <h3>{item.contentType === "BOOK" ? (item.title || "Sin titulo") : (item.mangaTitle || "Sin titulo")}</h3>
                   <p className="profile-last-read-chapter">{item.chapterLabel}</p>
                   <div className="profile-last-read-track">
                     <span

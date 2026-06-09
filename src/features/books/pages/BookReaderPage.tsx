@@ -28,6 +28,7 @@ import type {
   BookReaderPreferences,
   BookReadManifest,
 } from "@/types/domain";
+import { useReaderHotkeys } from "@/features/reader/hooks/useReaderHotkeys";
 
 function themeColors(theme: string) {
   if (theme === "dark") {
@@ -528,6 +529,32 @@ export function BookReaderPage() {
       endSessionIfNeeded();
     };
   }, []);
+
+  const handleToggleFullscreen = useCallback(async () => {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    } else {
+      await shellRef.current?.requestFullscreen?.();
+    }
+  }, []);
+
+  const handlePrevHotkey = useCallback(() => {
+    const rendition = renditionRef.current;
+    if (!rendition) return;
+    rendition.prev?.();
+  }, []);
+
+  const handleNextHotkey = useCallback(() => {
+    const rendition = renditionRef.current;
+    if (!rendition) return;
+    rendition.next?.();
+  }, []);
+
+  useReaderHotkeys({
+    onNext: handleNextHotkey,
+    onPrev: handlePrevHotkey,
+    onToggleFullscreen: handleToggleFullscreen,
+  });
 
   const isLoading =
     bookQuery.isLoading ||

@@ -229,16 +229,6 @@ export function BooksListPage() {
               >
                 <h3 className="book-poster-title">{book.title}</h3>
                 <p className="book-poster-subtitle">{book.author || "Autor desconocido"}</p>
-
-                {book.categories.length > 0 && (
-                  <div className="book-hover-tags">
-                    {book.categories.slice(0, 3).map((category) => (
-                      <span key={`${book.id}-${category}`} className="book-hover-tag">
-                        {category}
-                      </span>
-                    ))}
-                  </div>
-                )}
               </div>
             </Link>
           );
