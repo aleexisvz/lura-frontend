@@ -13,7 +13,7 @@ import {
 import {
   endReadingSession,
   endReadingSessionKeepalive,
-  startReadingSession
+  startMangaReadingSession
 } from "@/features/reading/api";
 import { ReaderShell } from "@/features/reader/components/ReaderShell";
 import { useReaderHotkeys } from "@/features/reader/hooks/useReaderHotkeys";
@@ -63,7 +63,7 @@ export function MangaReaderPage() {
   });
 
   const startSessionMutation = useMutation({
-    mutationFn: startReadingSession,
+    mutationFn: startMangaReadingSession,
     onSuccess: (id) => setSessionId(id)
   });
 

@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ErrorBox } from "@/components/ErrorBox";
 import { Loading } from "@/components/Loading";
-import { getContinueReading, getReadingStats } from "@/features/reading/api";
+import { getContinueReading, getReadingStats, getRecentSeries } from "@/features/reading/api";
 import { useAuth } from "@/features/auth/AuthContext";
 
 function formatReadingTime(totalSeconds: number): string {
@@ -21,12 +21,17 @@ export function HomePage() {
 
   const continueQuery = useQuery({
     queryKey: ["continue-reading"],
-    queryFn: getContinueReading
+    queryFn: getContinueReading,
   });
 
   const statsQuery = useQuery({
     queryKey: ["reading-stats"],
-    queryFn: getReadingStats
+    queryFn: getReadingStats,
+  });
+
+  const recentSeriesQuery = useQuery({
+    queryKey: ["recent-series"],
+    queryFn: () => getRecentSeries(8),
   });
 
   return (
@@ -34,7 +39,7 @@ export function HomePage() {
       <header>
         <h1>Bienvenido a Lura</h1>
         <p className="muted-text">
-          {email ? `Sesión: ${email}` : "Sesión activa"} · Rol: {role}
+          {email ? `Sesion: ${email}` : "Sesion activa"} · Rol: {role}
         </p>
       </header>
 
@@ -50,8 +55,7 @@ export function HomePage() {
                   key={`${item.mangaId}-${item.volumeId}`}
                   to={`/reader/${item.mangaId}/${item.volumeId}/${item.pageNumber}`}
                 >
-                  {item.mangaTitle || item.mangaId} · Volumen {item.volumeId} · Página{" "}
-                  {item.pageNumber}
+                  {item.mangaTitle || item.mangaId} · Volumen {item.volumeId} · Pagina {item.pageNumber}
                 </Link>
               ))
             ) : (
@@ -69,12 +73,30 @@ export function HomePage() {
               <p>Total sesiones: {statsQuery.data.totalSessions}</p>
               <p>Tiempo total de lectura: {formatReadingTime(statsQuery.data.totalSeconds)}</p>
               <p>Total mangas leidos: {statsQuery.data.totalMangasRead}</p>
-              <p>Total volúmenes leídos: {statsQuery.data.totalVolumesRead}</p>
-              <p>Total páginas leídas: {statsQuery.data.totalPagesRead}</p>
+              <p>Total books leidos: {statsQuery.data.totalBooksRead}</p>
+              <p>Total volumenes leidos: {statsQuery.data.totalVolumesRead}</p>
+              <p>Total paginas leidas: {statsQuery.data.totalPagesRead}</p>
             </div>
           )}
         </article>
       </div>
+
+      <article className="card">
+        <h2>Books recientes</h2>
+        {recentSeriesQuery.isLoading && <Loading />}
+        {recentSeriesQuery.isError && <ErrorBox error={recentSeriesQuery.error} />}
+        <div className="grid">
+          {recentSeriesQuery.data?.books.length ? (
+            recentSeriesQuery.data.books.map((item) => (
+              <Link key={item.contentId} to={`/books/${item.contentId}`}>
+                {item.title}
+              </Link>
+            ))
+          ) : (
+            <p className="muted-text">Todavia no hay actividad reciente en books.</p>
+          )}
+        </div>
+      </article>
     </section>
   );
 }

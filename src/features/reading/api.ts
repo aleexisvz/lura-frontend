@@ -37,6 +37,7 @@ export async function getReadingStats(): Promise<ReadingStats> {
     totalSeconds: pickNumber(source, ["totalSeconds", "seconds"], 0),
     totalPagesRead: pickNumber(source, ["totalPagesRead", "pagesRead"], 0),
     totalVolumesRead: pickNumber(source, ["totalVolumesRead", "volumesRead"], 0),
+    totalChaptersRead: pickNumber(source, ["totalChaptersRead", "chaptersRead"], 0),
     totalMangasRead: pickNumber(source, ["totalMangasRead", "mangasRead"], 0),
     totalSeriesRead: pickNumber(source, ["totalSeriesRead", "seriesRead"], 0),
     totalBooksRead: pickNumber(source, ["totalBooksRead", "booksRead"], 0),
@@ -69,18 +70,32 @@ export async function getRecentSeries(limit = 12): Promise<RecentSeriesResponse>
   };
 }
 
-export async function startReadingSession(payload: {
-  mangaId: string;
-  volumeId: string;
-  pageNumber: number;
-}) {
+export async function startReadingSession(payload: { contentType: "MANGA" | "BOOK"; contentId: string }) {
   const response = await apiClient.request<unknown>("/reading/sessions/start", {
     method: "POST",
-    body: { contentType: "MANGA", contentId: payload.mangaId }
+    body: payload,
   });
 
   const source = unwrapObject(response);
   return pickString(source, ["sessionId", "id"]);
+}
+
+export async function startMangaReadingSession(payload: {
+  mangaId: string;
+  volumeId: string;
+  pageNumber: number;
+}) {
+  return startReadingSession({
+    contentType: "MANGA",
+    contentId: payload.mangaId,
+  });
+}
+
+export async function startBookReadingSession(bookId: string) {
+  return startReadingSession({
+    contentType: "BOOK",
+    contentId: bookId,
+  });
 }
 
 export async function endReadingSession(sessionId: string) {

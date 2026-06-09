@@ -1,7 +1,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { getMangaList, getVolumes } from "@/features/manga/api";
+import { getMangaList, getVolumes, getProgress } from "@/features/manga/api";
 import { getTags } from "@/features/tags/api";
 import { ErrorBox } from "@/components/ErrorBox";
 import { Loading } from "@/components/Loading";
@@ -63,6 +63,15 @@ export function MangaListPage() {
       queryKey: ["manga-volumes", manga.id],
       queryFn: () => getVolumes(manga.id),
       staleTime: 1000 * 60 * 5,
+    })),
+  });
+
+  const progressQueries = useQueries({
+    queries: filteredManga.map((manga) => ({
+      queryKey: ["manga-progress", manga.id],
+      queryFn: () => getProgress(manga.id),
+      staleTime: 1000 * 60 * 5,
+      retry: false,
     })),
   });
 
@@ -142,6 +151,13 @@ export function MangaListPage() {
           const volumeCount = volumesQueries[index]?.data?.length ?? 0;
           const demoType = getDemoMangaType(item.id);
           const demoStatus = getDemoStatus(item.id);
+          const progress = progressQueries[index]?.data;
+          const readingStatus =
+            progress === null || progress === undefined
+              ? "not-started"
+              : progress.completed
+              ? "completed"
+              : "reading";
 
           return (
             <Link
@@ -162,7 +178,15 @@ export function MangaListPage() {
 
               <span className="manga-volume-badge">{volumeCount}</span>
 
-              <div className="manga-hover-layer">
+              <div
+                className={`manga-hover-layer${
+                  readingStatus === "reading"
+                    ? " is-reading"
+                    : readingStatus === "completed"
+                    ? " is-completed"
+                    : ""
+                }`}
+              >
                 <h3 className="manga-poster-title">{item.title}</h3>
                 {item.titleKanji && <p className="manga-poster-subtitle">{item.titleKanji}</p>}
                 <div className="manga-hover-tags">

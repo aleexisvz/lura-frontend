@@ -84,13 +84,19 @@ export function ProfilePage() {
   const readingTime = formatReadingTimeByTier(statsQuery.data?.totalSeconds ?? 0);
   const readingLevel = meQuery.data?.readingLevel ?? statsQuery.data?.readingLevel ?? 1;
   const [recentTab, setRecentTab] = useState<"manga" | "books">("manga");
+  const [statsTab, setStatsTab] = useState<"manga" | "books">("manga");
 
   const statsLine = useMemo(() => {
+    const pages = statsQuery.data?.totalPagesRead ?? 0;
+    if (statsTab === "books") {
+      const books = statsQuery.data?.totalBooksRead ?? 0;
+      const chapters = statsQuery.data?.totalChaptersRead ?? 0;
+      return `Libros: ${books} | Cap\u00edtulos: ${chapters} | Paginas: ${pages}`;
+    }
     const series = statsQuery.data?.totalSeriesRead ?? 0;
     const volumes = statsQuery.data?.totalVolumesRead ?? 0;
-    const pages = statsQuery.data?.totalPagesRead ?? 0;
     return `Series: ${series} | Volumenes: ${volumes} | Paginas: ${pages}`;
-  }, [statsQuery.data]);
+  }, [statsQuery.data, statsTab]);
 
   const xpLine = useMemo(() => {
     const level = statsQuery.data?.readingLevel ?? meQuery.data?.readingLevel ?? 1;
@@ -152,7 +158,25 @@ export function ProfilePage() {
       <div className="profile-v2-grid">
         <div className="profile-v2-left-column">
           <article className="card profile-stats-card">
-            <h2>Estadisticas de lectura</h2>
+            <div className="profile-recent-header">
+              <h2>Estadisticas de lectura</h2>
+              <div className="profile-recent-tabs">
+                <button
+                  type="button"
+                  className={`profile-recent-tab${statsTab === "manga" ? " active" : ""}`}
+                  onClick={() => setStatsTab("manga")}
+                >
+                  Manga
+                </button>
+                <button
+                  type="button"
+                  className={`profile-recent-tab${statsTab === "books" ? " active" : ""}`}
+                  onClick={() => setStatsTab("books")}
+                >
+                  Books
+                </button>
+              </div>
+            </div>
             {statsQuery.isLoading && <Loading />}
             {statsQuery.isError && <ErrorBox error={statsQuery.error} />}
             {statsQuery.data && (
