@@ -292,7 +292,9 @@ export function AdminPanelPage() {
 
   const uploadEpubMutation = useMutation({
     mutationFn: uploadEpub,
-    onSuccess: () => {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["books-admin"] });
+      await queryClient.invalidateQueries({ queryKey: ["books"] });
       setSuccess("EPUB subido correctamente");
       setEpubBookId("");
       setEpubFile(null);

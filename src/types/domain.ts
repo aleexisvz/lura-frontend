@@ -60,6 +60,10 @@ export type MangaProgress = {
 };
 
 export type ContinueReadingItem = {
+  contentType?: "MANGA" | "BOOK";
+  bookId?: string;
+  title?: string;
+  chapterLabel?: string;
   mangaId: string;
   volumeId: string;
   pageNumber: number;
@@ -69,6 +73,7 @@ export type ContinueReadingItem = {
   totalPages?: number;
   progressPercent?: number;
   coverUrl?: string | null;
+  updatedAt?: string;
 };
 
 export type ReadingStats = {
@@ -77,6 +82,7 @@ export type ReadingStats = {
   totalSeconds: number;
   totalPagesRead: number;
   totalVolumesRead: number;
+  totalChaptersRead: number;
   totalMangasRead: number;
   totalSeriesRead: number;
   totalBooksRead: number;
@@ -107,4 +113,58 @@ export type Book = {
   tags: Tag[];
   categories: string[];
   coverUrl: string | null;
+  hasEpub?: boolean;
+  language?: string | null;
+  readingDirection?: "DEFAULT" | "LTR" | "RTL";
+  readerStatus?: "PROCESSING" | "READY" | "FAILED";
+  processingError?: string | null;
+};
+
+export type BookReaderMode = "PAGINATED" | "SCROLL";
+
+export type BookReaderPreferences = {
+  mode: BookReaderMode;
+  theme: string;
+  fontFamily: string;
+  fontSize: number;
+  lineHeight: number;
+  textAlign: string;
+  pageWidth: number;
+};
+
+export type BookSpineItem = {
+  id: string;
+  sectionId: string;
+  href: string;
+  mediaType: string;
+  label: string;
+  order: number;
+};
+
+export type BookTocItem = {
+  id: string;
+  label: string;
+  href: string;
+  sectionId: string | null;
+  anchor: string | null;
+  order: number;
+};
+
+export type BookReadManifest = {
+  book: Book;
+  readingDirection: "DEFAULT" | "LTR" | "RTL";
+  resourcesBaseUrl: string;
+  epubUrl: string;
+  toc: BookTocItem[];
+  spine: BookSpineItem[];
+  defaultPreferences: BookReaderPreferences;
+};
+
+export type BookProgress = {
+  bookId: string;
+  spineIndex: number;
+  sectionHref: string;
+  locator: string;
+  progressPercent: number;
+  updatedAt: string;
 };

@@ -13,7 +13,12 @@ export async function getContinueReading(): Promise<ContinueReadingItem[]> {
   const response = await apiClient.request<unknown>("/users/me/continue-reading");
   return unwrapArray(response).map((entry) => {
     const source = unwrapObject(entry);
+    const contentType = pickString(source, ["contentType"], "MANGA");
     return {
+      contentType: contentType === "BOOK" ? "BOOK" : "MANGA",
+      bookId: pickString(source, ["bookId"]),
+      title: pickString(source, ["title"]),
+      chapterLabel: pickString(source, ["chapterLabel", "sectionLabel"]),
       mangaId: pickString(source, ["mangaId", "id"]),
       volumeId: pickString(source, ["volumeId"]),
       pageNumber: pickNumber(source, ["pageNumber", "currentPage", "page"], 1),
@@ -22,7 +27,8 @@ export async function getContinueReading(): Promise<ContinueReadingItem[]> {
       volumeNumber: pickNumber(source, ["volumeNumber", "chapterNumber"], 0),
       totalPages: pickNumber(source, ["totalPages", "pagesCount", "pageCount"], 0),
       progressPercent: pickNumber(source, ["progressPercent", "progress"], 0),
-      coverUrl: pickString(source, ["coverUrl", "volumeCoverUrl"], "") || null
+      coverUrl: pickString(source, ["coverUrl", "volumeCoverUrl"], "") || null,
+      updatedAt: pickString(source, ["updatedAt"]),
     };
   });
 }
@@ -37,6 +43,7 @@ export async function getReadingStats(): Promise<ReadingStats> {
     totalSeconds: pickNumber(source, ["totalSeconds", "seconds"], 0),
     totalPagesRead: pickNumber(source, ["totalPagesRead", "pagesRead"], 0),
     totalVolumesRead: pickNumber(source, ["totalVolumesRead", "volumesRead"], 0),
+    totalChaptersRead: pickNumber(source, ["totalChaptersRead", "chaptersRead"], 0),
     totalMangasRead: pickNumber(source, ["totalMangasRead", "mangasRead"], 0),
     totalSeriesRead: pickNumber(source, ["totalSeriesRead", "seriesRead"], 0),
     totalBooksRead: pickNumber(source, ["totalBooksRead", "booksRead"], 0),
@@ -69,18 +76,32 @@ export async function getRecentSeries(limit = 12): Promise<RecentSeriesResponse>
   };
 }
 
-export async function startReadingSession(payload: {
-  mangaId: string;
-  volumeId: string;
-  pageNumber: number;
-}) {
+export async function startReadingSession(payload: { contentType: "MANGA" | "BOOK"; contentId: string }) {
   const response = await apiClient.request<unknown>("/reading/sessions/start", {
     method: "POST",
-    body: { contentType: "MANGA", contentId: payload.mangaId }
+    body: payload,
   });
 
   const source = unwrapObject(response);
   return pickString(source, ["sessionId", "id"]);
+}
+
+export async function startMangaReadingSession(payload: {
+  mangaId: string;
+  volumeId: string;
+  pageNumber: number;
+}) {
+  return startReadingSession({
+    contentType: "MANGA",
+    contentId: payload.mangaId,
+  });
+}
+
+export async function startBookReadingSession(bookId: string) {
+  return startReadingSession({
+    contentType: "BOOK",
+    contentId: bookId,
+  });
 }
 
 export async function endReadingSession(sessionId: string) {

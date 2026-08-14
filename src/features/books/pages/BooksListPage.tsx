@@ -1,15 +1,17 @@
 import { FormEvent, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { getBooks } from "@/features/books/api";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import { getBooks, getBookProgress } from "@/features/books/api";
 import { getTags } from "@/features/tags/api";
 import { ErrorBox } from "@/components/ErrorBox";
 import { Loading } from "@/components/Loading";
 import { ProtectedImage } from "@/components/ProtectedImage";
-import { getDemoStatus } from "@/lib/demoFilters";
+import type { Book } from "@/types/domain";
+
+type BookAvailability = "ALL" | "READY" | "PROCESSING" | "FAILED" | "PENDING";
 
 type BooksFilterState = {
-  status: "ALL" | "FINALIZADO" | "EN_EMISION";
+  status: BookAvailability;
   tagIds: string[];
 };
 
@@ -21,9 +23,57 @@ function parseFilterParams(searchParams: URLSearchParams): BooksFilterState {
     .filter(Boolean);
 
   return {
-    status: statusValue === "FINALIZADO" || statusValue === "EN_EMISION" ? statusValue : "ALL",
+    status:
+      statusValue === "READY" ||
+      statusValue === "PROCESSING" ||
+      statusValue === "FAILED" ||
+      statusValue === "PENDING"
+        ? statusValue
+        : "ALL",
     tagIds,
   };
+}
+
+function getBookAvailability(book: Book): Exclude<BookAvailability, "ALL"> {
+  if (book.readerStatus === "READY") {
+    return "READY";
+  }
+
+  if (book.readerStatus === "FAILED") {
+    return "FAILED";
+  }
+
+  if (book.hasEpub) {
+    return "PROCESSING";
+  }
+
+  return "PENDING";
+}
+
+function getAvailabilityLabel(status: Exclude<BookAvailability, "ALL">) {
+  switch (status) {
+    case "READY":
+      return "Listo";
+    case "FAILED":
+      return "Error";
+    case "PROCESSING":
+      return "Procesando";
+    default:
+      return "Sin EPUB";
+  }
+}
+
+function getAvailabilityBadgeClass(status: Exclude<BookAvailability, "ALL">) {
+  switch (status) {
+    case "READY":
+      return "book-status-badge is-ready";
+    case "FAILED":
+      return "book-status-badge is-failed";
+    case "PROCESSING":
+      return "book-status-badge is-processing";
+    default:
+      return "book-status-badge is-pending";
+  }
 }
 
 export function BooksListPage() {
@@ -45,18 +95,31 @@ export function BooksListPage() {
   const filteredBooks = useMemo(() => {
     const list = booksQuery.data ?? [];
     return list.filter((book) => {
-      const status = getDemoStatus(book.id);
-      if (statusFilter !== "ALL" && status !== statusFilter) return false;
-      return true;
+      const availability = getBookAvailability(book);
+      return statusFilter === "ALL" ? true : availability === statusFilter;
     });
   }, [booksQuery.data, statusFilter]);
+
+  const progressQueries = useQueries({
+    queries: filteredBooks.map((book) => ({
+      queryKey: ["book-progress", book.id],
+      queryFn: () => getBookProgress(book.id),
+      staleTime: 1000 * 60 * 5,
+      retry: false,
+    })),
+  });
 
   const applyFilter = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const next = new URLSearchParams();
 
-    if (statusFilter !== "ALL") next.set("status", statusFilter);
-    if (selectedTagIds.length > 0) next.set("tagIds", selectedTagIds.join(","));
+    if (statusFilter !== "ALL") {
+      next.set("status", statusFilter);
+    }
+
+    if (selectedTagIds.length > 0) {
+      next.set("tagIds", selectedTagIds.join(","));
+    }
 
     setSearchParams(next);
   };
@@ -68,7 +131,7 @@ export function BooksListPage() {
   };
 
   return (
-    <section className="grid">
+    <section className="manga-page grid">
       <form onSubmit={applyFilter} className="filters-toolbar books-filters">
         <div className="filter-control">
           <span>Genero</span>
@@ -92,14 +155,16 @@ export function BooksListPage() {
         </div>
 
         <label className="filter-control">
-          <span>Estado</span>
+          <span>Disponibilidad</span>
           <select
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value as BooksFilterState["status"])}
           >
             <option value="ALL">Seleccionar</option>
-            <option value="FINALIZADO">Finalizado</option>
-            <option value="EN_EMISION">En emision</option>
+            <option value="READY">Listo para leer</option>
+            <option value="PROCESSING">Procesando EPUB</option>
+            <option value="PENDING">Sin EPUB</option>
+            <option value="FAILED">Con error</option>
           </select>
         </label>
 
@@ -109,29 +174,65 @@ export function BooksListPage() {
       </form>
 
       {tagsQuery.isError && <ErrorBox error={tagsQuery.error} />}
-      {booksQuery.isLoading && <Loading />}
+      {booksQuery.isLoading && <Loading text="Cargando catalogo..." />}
       {booksQuery.isError && <ErrorBox error={booksQuery.error} />}
 
-      <div className="grid grid-2">
-        {filteredBooks.map((book) => (
-          <article key={book.id} className="card">
-            {book.coverUrl ? (
-              <ProtectedImage
-                path={book.coverUrl}
-                alt={`Portada de ${book.title}`}
-                className="cover-image"
-              />
-            ) : (
-              <div className="cover-placeholder">Sin portada</div>
-            )}
-            <h3>{book.title}</h3>
-            {book.author && <p className="muted-text">Autor: {book.author}</p>}
-            {book.categories.length > 0 && (
-              <p className="muted-text">Generos: {book.categories.join(", ")}</p>
-            )}
-            <Link to={`/books/${book.id}`}>Ver detalle</Link>
-          </article>
-        ))}
+      {!booksQuery.isLoading && !booksQuery.isError && filteredBooks.length === 0 && (
+        <article className="card">
+          <h2>No encontramos books para esos filtros</h2>
+          <p className="muted-text">Prueba con menos generos o cambia la disponibilidad seleccionada.</p>
+        </article>
+      )}
+
+      <div className="book-poster-grid">
+        {filteredBooks.map((book, index) => {
+          const availability = getBookAvailability(book);
+          const progress = progressQueries[index]?.data;
+          const readingStatus =
+            !progress || progress.progressPercent === 0
+              ? "not-started"
+              : progress.progressPercent >= 95
+              ? "completed"
+              : "reading";
+
+          return (
+            <Link
+              key={book.id}
+              to={`/books/${book.id}`}
+              className="book-poster-card"
+              aria-label={`Abrir ${book.title}`}
+            >
+              {book.coverUrl ? (
+                <ProtectedImage
+                  path={book.coverUrl}
+                  alt={`Portada de ${book.title}`}
+                  className="book-poster-image"
+                />
+              ) : (
+                <div className="book-poster-image book-poster-fallback">Sin portada</div>
+              )}
+
+              {availability !== "READY" && (
+                <span className={getAvailabilityBadgeClass(availability)}>
+                  {getAvailabilityLabel(availability)}
+                </span>
+              )}
+
+              <div
+                className={`book-hover-layer${
+                  readingStatus === "reading"
+                    ? " is-reading"
+                    : readingStatus === "completed"
+                    ? " is-completed"
+                    : ""
+                }`}
+              >
+                <h3 className="book-poster-title">{book.title}</h3>
+                <p className="book-poster-subtitle">{book.author || "Autor desconocido"}</p>
+              </div>
+            </Link>
+          );
+        })}
       </div>
     </section>
   );

@@ -1,6 +1,6 @@
 import { apiClient } from "@/lib/apiClient";
 import { pickNumber, pickString, unwrapObject } from "@/lib/adapters";
-import type { Role, UserProfile } from "@/types/domain";
+import type { BookReaderPreferences, Role, UserProfile } from "@/types/domain";
 
 const MAX_DIMENSION = 768;
 const OUTPUT_QUALITY = 0.84;
@@ -37,6 +37,44 @@ export async function uploadProfileImage(file: File) {
       body: formData,
     }
   );
+}
+
+export async function getBookReaderPreferences(): Promise<BookReaderPreferences> {
+  const response = await apiClient.request<unknown>("/users/me/book-reader-preferences");
+  const source = unwrapObject(response);
+  const mode = pickString(source, ["mode"], "PAGINATED");
+
+  return {
+    mode: mode === "SCROLL" ? "SCROLL" : "PAGINATED",
+    theme: pickString(source, ["theme"], "light"),
+    fontFamily: pickString(source, ["fontFamily"], "system-ui"),
+    fontSize: Math.max(12, pickNumber(source, ["fontSize"], 18)),
+    lineHeight: pickNumber(source, ["lineHeight"], 1.6),
+    textAlign: pickString(source, ["textAlign"], "left"),
+    pageWidth: pickNumber(source, ["pageWidth"], 720),
+  };
+}
+
+export async function updateBookReaderPreferences(
+  payload: BookReaderPreferences
+): Promise<BookReaderPreferences> {
+  const response = await apiClient.request<unknown>("/users/me/book-reader-preferences", {
+    method: "PUT",
+    body: payload,
+  });
+
+  const source = unwrapObject(response);
+  const mode = pickString(source, ["mode"], "PAGINATED");
+
+  return {
+    mode: mode === "SCROLL" ? "SCROLL" : "PAGINATED",
+    theme: pickString(source, ["theme"], "light"),
+    fontFamily: pickString(source, ["fontFamily"], "system-ui"),
+    fontSize: Math.max(12, pickNumber(source, ["fontSize"], 18)),
+    lineHeight: pickNumber(source, ["lineHeight"], 1.6),
+    textAlign: pickString(source, ["textAlign"], "left"),
+    pageWidth: pickNumber(source, ["pageWidth"], 720),
+  };
 }
 
 async function optimizeImage(file: File): Promise<File> {

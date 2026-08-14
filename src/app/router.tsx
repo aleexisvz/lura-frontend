@@ -9,6 +9,7 @@ import { MangaDetailPage } from "@/features/manga/pages/MangaDetailPage";
 import { MangaReaderPage } from "@/features/manga/pages/MangaReaderPage";
 import { BooksListPage } from "@/features/books/pages/BooksListPage";
 import { BookDetailPage } from "@/features/books/pages/BookDetailPage";
+import { BookReaderPage } from "@/features/books/pages/BookReaderPage";
 import { AdminPanelPage } from "@/features/admin/pages/AdminPanelPage";
 import { PromotePage } from "@/features/admin/pages/PromotePage";
 import { ProfilePage } from "@/features/profile/pages/ProfilePage";
@@ -31,6 +32,7 @@ export function AppRouter() {
           />
           <Route path="/books" element={<BooksListPage />} />
           <Route path="/books/:bookId" element={<BookDetailPage />} />
+          <Route path="/books/:bookId/read" element={<BookReaderPage />} />
 
           <Route element={<AdminGuard />}>
             <Route path="/admin" element={<AdminPanelPage />} />
