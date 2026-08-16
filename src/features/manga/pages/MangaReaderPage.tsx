@@ -41,8 +41,24 @@ export function MangaReaderPage() {
 
   const imageUrl = useMemo(() => {
     if (!pagesQuery.data) return null;
-    const page = pagesQuery.data.pages.find((p) => p.index === currentPage);
+    const page = pagesQuery.data.find((p) => p.pageNumber === currentPage);
     return page?.imageUrl ?? null;
+  }, [pagesQuery.data, currentPage]);
+
+  const preloadUrls = useMemo(() => {
+    if (!pagesQuery.data) return [];
+    
+    // Precargar 3 páginas hacia adelante y 1 hacia atrás
+    const urls: string[] = [];
+    const targetPages = [currentPage - 1, currentPage + 1, currentPage + 2, currentPage + 3];
+    
+    for (const target of targetPages) {
+      const page = pagesQuery.data.find((p) => p.pageNumber === target);
+      if (page?.imageUrl) {
+        urls.push(page.imageUrl);
+      }
+    }
+    return urls;
   }, [pagesQuery.data, currentPage]);
 
   const saveProgressMutation = useMutation({
@@ -303,6 +319,13 @@ export function MangaReaderPage() {
       {pagesQuery.isError && <ErrorBox error={pagesQuery.error} />}
 
       {imageUrl && <img src={imageUrl} alt={`Pagina ${currentPage}`} className="reader-image" />}
+
+      {/* Precarga de imágenes ocultas para cachear */}
+      <div style={{ display: "none" }} aria-hidden="true">
+        {preloadUrls.map(url => (
+          <img key={url} src={url} alt="" />
+        ))}
+      </div>
 
       {isWarning && !isAfkPaused && (
         <div className="reader-afk-overlay" role="alertdialog" aria-modal="true" aria-label="Aviso de inactividad">
