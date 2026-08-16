@@ -194,13 +194,13 @@ export function MangaReaderPage() {
   );
 
   const runGoToPage = useCallback(
-    async (nextPage: number) => {
+    (nextPage: number) => {
       const safeNextPage = clampPage(nextPage);
       if (!mangaId || !volumeId || safeNextPage === currentPage) {
         return;
       }
 
-      await saveProgressMutation.mutateAsync({
+      saveProgressMutation.mutate({
         mangaId,
         volumeId,
         pageNumber: safeNextPage
@@ -236,7 +236,7 @@ export function MangaReaderPage() {
       navigationInFlightRef.current = true;
       const navStart = Date.now();
       try {
-        await runGoToPage(safeNextPage);
+        runGoToPage(safeNextPage);
       } finally {
         navigationInFlightRef.current = false;
       }
