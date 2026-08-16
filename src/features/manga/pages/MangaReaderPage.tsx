@@ -4,7 +4,6 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { ErrorBox } from "@/components/ErrorBox";
 import { Loading } from "@/components/Loading";
 import {
-  getPageImageBlob,
   getPages,
   getVolumeCompletion,
   markVolumeCompleted,
@@ -25,7 +24,6 @@ export function MangaReaderPage() {
   const navigate = useNavigate();
   const { mangaId = "", volumeId = "", pageNumber = "1" } = useParams();
   const currentPage = useMemo(() => Number(pageNumber) || 1, [pageNumber]);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [sliderPage, setSliderPage] = useState(currentPage);
@@ -41,11 +39,11 @@ export function MangaReaderPage() {
     enabled: Boolean(mangaId && volumeId)
   });
 
-  const imageQuery = useQuery({
-    queryKey: ["page-image", mangaId, volumeId, currentPage],
-    queryFn: () => getPageImageBlob(mangaId, volumeId, currentPage),
-    enabled: Boolean(mangaId && volumeId && currentPage > 0)
-  });
+  const imageUrl = useMemo(() => {
+    if (!pagesQuery.data) return null;
+    const page = pagesQuery.data.pages.find((p) => p.index === currentPage);
+    return page?.imageUrl ?? null;
+  }, [pagesQuery.data, currentPage]);
 
   const saveProgressMutation = useMutation({
     mutationFn: saveProgress
@@ -94,16 +92,6 @@ export function MangaReaderPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mangaId, volumeId, currentPage]);
 
-  useEffect(() => {
-    if (!imageQuery.data) {
-      return;
-    }
-
-    const nextUrl = URL.createObjectURL(imageQuery.data);
-    setImageUrl(nextUrl);
-
-    return () => URL.revokeObjectURL(nextUrl);
-  }, [imageQuery.data]);
 
   useEffect(() => {
     sessionIdRef.current = sessionId;
@@ -313,8 +301,7 @@ export function MangaReaderPage() {
     >
       {pagesQuery.isLoading && <Loading text="Cargando paginas..." />}
       {pagesQuery.isError && <ErrorBox error={pagesQuery.error} />}
-      {imageQuery.isLoading && <Loading text="Cargando imagen protegida..." />}
-      {imageQuery.isError && <ErrorBox error={imageQuery.error} />}
+
       {imageUrl && <img src={imageUrl} alt={`Pagina ${currentPage}`} className="reader-image" />}
 
       {isWarning && !isAfkPaused && (

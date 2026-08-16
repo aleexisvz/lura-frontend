@@ -99,9 +99,6 @@ export async function getPages(mangaId: string, volumeId: string) {
   return pages.sort((a, b) => a.pageNumber - b.pageNumber);
 }
 
-export async function getPageImageBlob(mangaId: string, volumeId: string, pageNumber: number) {
-  return apiClient.fetchBlob(`/manga/${mangaId}/volumes/${volumeId}/pages/${pageNumber}/image`);
-}
 
 export async function getProgress(mangaId: string): Promise<MangaProgress | null> {
   const response = await apiClient.request<unknown>(`/manga/${mangaId}/progress`);
