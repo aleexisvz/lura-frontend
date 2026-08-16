@@ -1279,21 +1279,12 @@ select {
 }
 
 .filter-panel .tag-check input[type="checkbox"]:checked {
-  background: #3fd0c2;
+  background-color: #3fd0c2;
   border-color: #3fd0c2;
-}
-
-.filter-panel .tag-check input[type="checkbox"]:checked::after {
-  content: "";
-  position: absolute;
-  left: 5px;
-  top: 2px;
-  width: 5px;
-  height: 9px;
-  border: 2px solid #0c1626;
-  border-top: none;
-  border-left: none;
-  transform: rotate(45deg);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%230c1626' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M4 8.5l2.5 2.5L12 4.5'/%3E%3C/svg%3E");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 13px;
 }
 
 .filter-submit {
@@ -1472,20 +1463,11 @@ select {
 }
 
 .tag-check input[type="checkbox"]:checked {
-  background: #ffffff;
-}
-
-.tag-check input[type="checkbox"]:checked::after {
-  content: "";
-  position: absolute;
-  left: 6px;
-  top: 3px;
-  width: 5px;
-  height: 10px;
-  border: 2px solid #0d1623;
-  border-top: none;
-  border-left: none;
-  transform: rotate(45deg);
+  background-color: #ffffff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%230d1623' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M4 8.5l2.5 2.5L12 4.5'/%3E%3C/svg%3E");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 14px;
 }
 
 .book-reader-cta {
