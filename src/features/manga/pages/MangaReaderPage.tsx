@@ -81,10 +81,18 @@ export function MangaReaderPage() {
     onSuccess: (id) => setSessionId(id)
   });
 
+  const hasStartedRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!mangaId || !volumeId) {
       return;
     }
+    const volumeKey = `${mangaId}-${volumeId}`;
+    if (hasStartedRef.current === volumeKey) {
+      return;
+    }
+    hasStartedRef.current = volumeKey;
+
     startSessionMutation.mutate({
       mangaId,
       volumeId,

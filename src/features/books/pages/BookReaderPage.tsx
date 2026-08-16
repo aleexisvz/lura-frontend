@@ -254,10 +254,17 @@ export function BookReaderPage() {
     };
   }, [preferences, preferencesReady]);
 
+  const hasStartedRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!bookId || startSessionMutation.isPending || sessionId) {
       return;
     }
+    
+    if (hasStartedRef.current === bookId) {
+      return;
+    }
+    hasStartedRef.current = bookId;
 
     startSessionMutation.mutate(bookId);
   }, [bookId, sessionId, startSessionMutation]);
