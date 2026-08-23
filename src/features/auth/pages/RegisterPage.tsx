@@ -78,7 +78,7 @@ export function RegisterPage() {
         </label>
         {validationError && <p className="error-text">{validationError}</p>}
         {mutation.isError && <ErrorBox error={mutation.error} />}
-        <button type="submit" disabled={mutation.isPending}>
+        <button type="submit" className="btn-primary" disabled={mutation.isPending}>
           {mutation.isPending ? "Creando..." : "Crear cuenta"}
         </button>
       </form>
