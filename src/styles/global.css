@@ -1787,12 +1787,26 @@ select {
   border-color: var(--accent-gold);
 }
 
+.reader-nav-button:disabled {
+  opacity: 0.35;
+  background: var(--bg-surface);
+  border-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
 .reader-progress-wrap {
   flex: 1;
   display: flex;
   align-items: center;
   gap: 0.65rem;
   min-width: 140px;
+  transition: opacity 0.2s ease;
+}
+
+.reader-progress-wrap.is-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .reader-progress-meta {
@@ -1800,6 +1814,11 @@ select {
   font-weight: 700;
   color: var(--accent-gold);
   min-width: 34px;
+  transition: color 0.2s ease;
+}
+
+.reader-progress-wrap.is-disabled .reader-progress-meta {
+  color: var(--text-muted);
 }
 
 .reader-progress-input,
@@ -1813,6 +1832,15 @@ select {
   border-radius: var(--radius-full);
   accent-color: var(--accent-gold);
   cursor: pointer;
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.reader-progress-input:disabled,
+.reader-scrubber:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  accent-color: #666666;
+  filter: grayscale(1);
 }
 
 /* Modals & AFK overlay */

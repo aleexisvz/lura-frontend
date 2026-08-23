@@ -18,7 +18,7 @@ import { ReaderShell } from "@/features/reader/components/ReaderShell";
 import { useReaderHotkeys } from "@/features/reader/hooks/useReaderHotkeys";
 import { useAFKTimer } from "@/features/reader/hooks/useAFKTimer";
 
-const NAVIGATION_INTERVAL_MS = 1000;
+const NAVIGATION_INTERVAL_MS = 4000;
 
 export function MangaReaderPage() {
   const navigate = useNavigate();
@@ -28,6 +28,8 @@ export function MangaReaderPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [sliderPage, setSliderPage] = useState(currentPage);
   const [isAfkPaused, setIsAfkPaused] = useState(false);
+  const [isCoolingDown, setIsCoolingDown] = useState(false);
+  const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navigationInFlightRef = useRef(false);
   const queuedPageRef = useRef<number | null>(null);
   const sessionIdRef = useRef<string | null>(null);
@@ -185,6 +187,19 @@ export function MangaReaderPage() {
 
   useEffect(() => {
     setSliderPage(currentPage);
+    setIsCoolingDown(true);
+    if (cooldownTimerRef.current) {
+      clearTimeout(cooldownTimerRef.current);
+    }
+    cooldownTimerRef.current = setTimeout(() => {
+      setIsCoolingDown(false);
+    }, NAVIGATION_INTERVAL_MS);
+
+    return () => {
+      if (cooldownTimerRef.current) {
+        clearTimeout(cooldownTimerRef.current);
+      }
+    };
   }, [currentPage]);
 
   useEffect(() => {
@@ -235,50 +250,31 @@ export function MangaReaderPage() {
   );
 
   const goToPage = useCallback(
-    async (nextPage: number) => {
+    (nextPage: number) => {
+      if (isCoolingDown) return;
       const safeNextPage = clampPage(nextPage);
+      if (safeNextPage === currentPage) return;
       setSliderPage(safeNextPage);
-
-      if (navigationInFlightRef.current) {
-        queuedPageRef.current = safeNextPage;
-        return;
-      }
-
-      navigationInFlightRef.current = true;
-      const navStart = Date.now();
-      try {
-        runGoToPage(safeNextPage);
-      } finally {
-        navigationInFlightRef.current = false;
-      }
-
-      const queuedPage = queuedPageRef.current;
-      queuedPageRef.current = null;
-      if (queuedPage && queuedPage !== safeNextPage) {
-        const elapsed = Date.now() - navStart;
-        const remaining = NAVIGATION_INTERVAL_MS - elapsed;
-        if (remaining > 0) {
-          await new Promise((resolve) => setTimeout(resolve, remaining));
-        }
-        await goToPage(queuedPage);
-      }
+      runGoToPage(safeNextPage);
     },
-    [clampPage, runGoToPage]
+    [clampPage, currentPage, isCoolingDown, runGoToPage]
   );
 
   const goNext = useCallback(() => {
+    if (isCoolingDown) return;
     if (currentPage < maxPage) {
       resetAFKTimer();
-      void goToPage(currentPage + 1);
+      goToPage(currentPage + 1);
     }
-  }, [currentPage, goToPage, maxPage, resetAFKTimer]);
+  }, [currentPage, goToPage, isCoolingDown, maxPage, resetAFKTimer]);
 
   const goPrev = useCallback(() => {
+    if (isCoolingDown) return;
     if (currentPage > minPage) {
       resetAFKTimer();
-      void goToPage(currentPage - 1);
+      goToPage(currentPage - 1);
     }
-  }, [currentPage, goToPage, minPage, resetAFKTimer]);
+  }, [currentPage, goToPage, isCoolingDown, minPage, resetAFKTimer]);
 
   const toggleFullscreen = useCallback(async () => {
     resetAFKTimer();
@@ -364,7 +360,7 @@ export function MangaReaderPage() {
       progressPercent={progressPercent}
       sliderValue={sliderPage}
       isFullscreen={isFullscreen}
-      isBusy={saveProgressMutation.isPending}
+      isBusy={isCoolingDown || saveProgressMutation.isPending}
       zoom={zoom}
       onZoomChange={(newZoom) => {
         setZoom(newZoom);
