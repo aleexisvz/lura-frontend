@@ -102,6 +102,10 @@ export type ReadingStats = {
   xpInLevel: number;
   xpToNextLevel: number;
   xpProgressPercent: number;
+  isHotWeekend?: boolean;
+  xpMultiplier?: number;
+  activeXpEvent?: string | null;
+  xpPerMinute?: number;
 };
 
 export type RecentSeriesItem = {

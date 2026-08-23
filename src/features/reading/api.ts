@@ -52,6 +52,10 @@ export async function getReadingStats(): Promise<ReadingStats> {
     xpInLevel: Math.max(0, pickNumber(source, ["xpInLevel"], 0)),
     xpToNextLevel: Math.max(1, pickNumber(source, ["xpToNextLevel"], 20)),
     xpProgressPercent: Math.max(0, Math.min(100, pickNumber(source, ["xpProgressPercent"], 0))),
+    isHotWeekend: Boolean(source["isHotWeekend"]),
+    xpMultiplier: pickNumber(source, ["xpMultiplier"], 1),
+    activeXpEvent: pickString(source, ["activeXpEvent"]) || null,
+    xpPerMinute: pickNumber(source, ["xpPerMinute"], 2),
   };
 }
 
