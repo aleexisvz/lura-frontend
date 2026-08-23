@@ -275,14 +275,25 @@ export function ProfilePage() {
                     style={{
                       display: "flex",
                       justifyContent: "space-between",
+                      alignItems: "center",
                       fontSize: "0.8rem",
                       fontWeight: 600,
                       marginBottom: "0.35rem",
                     }}
                   >
-                    <span style={{ color: "var(--accent-gold)" }}>
-                      Nivel {statsQuery.data.readingLevel}
-                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <span style={{ color: "var(--accent-gold)" }}>
+                        Nivel {statsQuery.data.readingLevel}
+                      </span>
+                      {statsQuery.data.isHotWeekend && (
+                        <span
+                          className="hot-weekend-badge"
+                          title="¡Doble experiencia activa por fin de semana!"
+                        >
+                          🔥 Hot Weekend x2 XP
+                        </span>
+                      )}
+                    </div>
                     <span style={{ color: "var(--text-muted)" }}>
                       {statsQuery.data.xpInLevel} / {statsQuery.data.xpToNextLevel} XP
                     </span>

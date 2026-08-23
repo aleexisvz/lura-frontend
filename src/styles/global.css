@@ -2815,6 +2815,21 @@ select {
   pointer-events: none;
 }
 
+.hot-weekend-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #ff9838;
+  background: rgba(255, 120, 0, 0.12);
+  border: 1px solid rgba(255, 140, 40, 0.35);
+  padding: 0.12rem 0.45rem;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.01em;
+  text-shadow: 0 0 10px rgba(255, 120, 0, 0.3);
+}
+
 .profile-hero-meta {
   display: flex;
   flex-direction: column;
