@@ -60,9 +60,27 @@ export function BookDetailPage() {
     .map((segment) => segment.trim())
     .filter(Boolean);
 
+  const UserIcon = () => (
+    <svg
+      viewBox="0 0 24 24"
+      width="13"
+      height="13"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ display: "inline-block", verticalAlign: "middle", marginRight: "0.35rem" }}
+    >
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+
   return (
-    <section className="grid manga-detail-layout">
-      {bookQuery.isLoading && <Loading text="Cargando book..." />}
+    <section className="grid book-detail-layout">
+      {bookQuery.isLoading && <Loading text="Cargando libro..." />}
       {bookQuery.isError && <ErrorBox error={bookQuery.error} />}
       {progressQuery.isError && <ErrorBox error={progressQuery.error} />}
 
@@ -85,7 +103,9 @@ export function BookDetailPage() {
                 <h1 className="book-hero-title">{bookQuery.data.title}</h1>
 
                 <div className="book-hero-meta">
-                  <span className="book-hero-author">Autor: {bookQuery.data.author || "Desconocido"}</span>
+                  <span className="book-hero-author">
+                    <UserIcon /> {bookQuery.data.author || "Autor desconocido"}
+                  </span>
                   {bookQuery.data.language && (
                     <span className="book-hero-pill">Idioma: {bookQuery.data.language}</span>
                   )}
