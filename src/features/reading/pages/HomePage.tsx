@@ -1,340 +1,557 @@
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ErrorBox } from "@/components/ErrorBox";
-import { Loading } from "@/components/Loading";
 import { ProtectedImage } from "@/components/ProtectedImage";
-import { getContinueReading, getReadingStats, getRecentSeries } from "@/features/reading/api";
-import { useAuth } from "@/features/auth/AuthContext";
+import { Loading } from "@/components/Loading";
+import { ErrorBox } from "@/components/ErrorBox";
+import { getFeaturedManga, getRecentMangaUpdates, getMangaRankings } from "@/features/manga/api";
+import { getContinueReading } from "@/features/reading/api";
+import { getTags } from "@/features/tags/api";
+import { Manga } from "@/types/domain";
 
-function formatReadingTime(totalSeconds: number): string {
-  const days = Math.floor(totalSeconds / 86400);
-  const hours = Math.floor((totalSeconds % 86400) / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-
-  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m`;
-}
-
-const StarIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+// Icons
+const FireIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M12 23c-4.97 0-9-3.99-9-8.9 0-3.41 1.94-6.42 4.88-7.96.48-.25.86.32.55.75-1.02 1.41-1.39 2.82-1.02 4.11.45 1.58 1.93 2.65 3.59 2.65 1.62 0 3-1.01 3.52-2.52.71-2.09-.43-4.52-2.01-6.19-.34-.36-.08-.94.41-.93 4.22.06 7.58 3.58 7.58 8.09 0 4.91-4.03 8.9-9 8.9z" />
   </svg>
 );
 
-const ZapIcon = () => (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+const SparkleIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M12 0l2.5 9.5L24 12l-9.5 2.5L12 24l-2.5-9.5L0 12l9.5-2.5z" />
   </svg>
 );
 
-const ChartIcon = () => (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <line x1="12" y1="20" x2="12" y2="10" />
-    <line x1="18" y1="20" x2="18" y2="4" />
-    <line x1="6" y1="20" x2="6" y2="16" />
+const PlayIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <polygon points="5 3 19 12 5 21 5 3" />
   </svg>
 );
 
-const LibraryIcon = () => (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+const ArrowRightIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <line x1="5" y1="12" x2="19" y2="12" />
+    <polyline points="12 5 19 12 12 19" />
+  </svg>
+);
+
+const ChevronLeftIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polyline points="15 18 9 12 15 6" />
+  </svg>
+);
+
+const ChevronRightIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polyline points="9 18 15 12 9 6" />
+  </svg>
+);
+
+const ClockIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </svg>
+);
+
+const BookOpenIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
     <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
   </svg>
 );
 
-const BookPlaceholderIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-  </svg>
-);
+function formatRelativeTime(dateStr?: string): string {
+  if (!dateStr) return "Reciente";
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffHours < 1) return "Recién salido";
+  if (diffHours < 24) return `Hace ${diffHours}h`;
+  if (diffDays === 1) return "Ayer";
+  if (diffDays < 7) return `Hace ${diffDays} días`;
+  return date.toLocaleDateString("es-ES", { month: "short", day: "numeric" });
+}
 
 export function HomePage() {
-  const { email, role } = useAuth();
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+
+  // Queries
+  const featuredQuery = useQuery({
+    queryKey: ["manga-featured"],
+    queryFn: getFeaturedManga,
+  });
+
+  const updatesQuery = useQuery({
+    queryKey: ["manga-recent-updates"],
+    queryFn: getRecentMangaUpdates,
+  });
+
+  const rankingsQuery = useQuery({
+    queryKey: ["manga-rankings"],
+    queryFn: getMangaRankings,
+  });
 
   const continueQuery = useQuery({
     queryKey: ["continue-reading"],
     queryFn: getContinueReading,
   });
 
-  const statsQuery = useQuery({
-    queryKey: ["reading-stats"],
-    queryFn: getReadingStats,
+  const tagsQuery = useQuery({
+    queryKey: ["tags", "MANGA"],
+    queryFn: () => getTags("MANGA"),
   });
 
-  const recentSeriesQuery = useQuery({
-    queryKey: ["recent-series"],
-    queryFn: () => getRecentSeries(8),
-  });
+  // Featured Slides preparation
+  const featuredList: Manga[] = useMemo(() => {
+    if (featuredQuery.data && featuredQuery.data.length > 0) {
+      return featuredQuery.data;
+    }
+    if (updatesQuery.data && updatesQuery.data.length > 0) {
+      return updatesQuery.data.slice(0, 5);
+    }
+    return [];
+  }, [featuredQuery.data, updatesQuery.data]);
 
+  // Carousel Auto-rotation
+  useEffect(() => {
+    if (featuredList.length <= 1 || isPaused) return;
+    const interval = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % featuredList.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [featuredList.length, isPaused]);
+
+  const currentHero = featuredList[activeSlide] ?? null;
+
+  // Filtered Updates
+  const filteredUpdates = useMemo(() => {
+    const list = updatesQuery.data ?? [];
+    if (!selectedTag) return list;
+    return list.filter((manga) =>
+      manga.tags?.some((t) => t.id === selectedTag || t.name === selectedTag)
+    );
+  }, [updatesQuery.data, selectedTag]);
+
+  // Rankings
+  const rankings = rankingsQuery.data ?? [];
+
+  // Active Continue Reading item
   const latestContinue = continueQuery.data?.[0];
 
   return (
-    <div className="home-page">
-      {/* Hero Banner */}
-      <section className="home-hero">
-        <div>
-          <h1>Biblioteca Digital</h1>
-          <div className="home-hero-meta">
-            <span>{email || "Sesión activa"}</span>
-            <span className="home-hero-badge" style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}>
-              <StarIcon /> Nivel {statsQuery.data?.readingLevel ?? 1}
-            </span>
-            {role === "ADMIN" && (
-              <span className="home-hero-badge">ADMIN</span>
-            )}
+    <div className="mp-home">
+      {/* 1. HERO CAROUSEL BANNER (Manga Plus Style) */}
+      {currentHero ? (
+        <section
+          className="mp-hero-banner"
+          onMouseEnter={() => setIsPaused(true)}
+          onMouseLeave={() => setIsPaused(false)}
+        >
+          {/* Ambient Backdrop */}
+          <div className="mp-hero-backdrop">
+            {currentHero.coverUrl ? (
+              <ProtectedImage
+                path={currentHero.coverUrl}
+                alt=""
+                className="mp-hero-bg-img"
+              />
+            ) : null}
+            <div className="mp-hero-gradient-overlay" />
           </div>
-        </div>
-        {latestContinue && (
-          <Link
-            to={
-              latestContinue.contentType === "BOOK"
-                ? `/books/${latestContinue.bookId}/reader`
-                : `/reader/${latestContinue.mangaId}/${latestContinue.volumeId}/${latestContinue.pageNumber}`
-            }
-            className="btn-primary"
-            style={{ textDecoration: "none" }}
-          >
-            Continuar: {latestContinue.mangaTitle || latestContinue.title || "Lectura"} →
-          </Link>
-        )}
-      </section>
 
-      {/* Main Grid: Continue Reading & Stats */}
-      <div className="grid grid-2">
-        {/* Continue Reading Card */}
-        <article className="card">
-          <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <span style={{ display: "inline-flex", color: "var(--accent-gold)" }}><ZapIcon /></span> Continuar Leyendo
-          </h2>
-          {continueQuery.isLoading && <Loading />}
-          {continueQuery.isError && <ErrorBox error={continueQuery.error} />}
-          
-          <div className="continue-reading-list">
-            {continueQuery.data?.length ? (
-              continueQuery.data.slice(0, 4).map((item) => {
-                const targetUrl =
-                  item.contentType === "BOOK"
-                    ? `/books/${item.bookId}/reader`
-                    : `/reader/${item.mangaId}/${item.volumeId}/${item.pageNumber}`;
-                const title = item.mangaTitle || item.title || item.mangaId || "Lectura";
-                const volumeNum = item.volumeNumber ?? 0;
-                const label = item.volumeTitle
-                  ? item.volumeTitle
-                  : volumeNum > 0
-                  ? `Capítulo ${volumeNum}`
-                  : `Vol. ${item.volumeId}`;
-                const progressPct = item.progressPercent ?? 0;
+          {/* Hero Content */}
+          <div className="mp-hero-container">
+            <div className="mp-hero-info">
+              <div className="mp-hero-badge-row">
+                <span className="mp-badge mp-badge-primary">
+                  <SparkleIcon /> DESTACADO DE LA SEMANA
+                </span>
+                {currentHero.status === "FINALIZADO" ? (
+                  <span className="mp-badge mp-badge-muted">COMPLETO</span>
+                ) : (
+                  <span className="mp-badge mp-badge-accent">EN EMISIÓN</span>
+                )}
+              </div>
+
+              {currentHero.titleKanji && (
+                <div className="mp-hero-kanji">{currentHero.titleKanji}</div>
+              )}
+
+              <h1 className="mp-hero-title">{currentHero.title}</h1>
+
+              {currentHero.author && (
+                <p className="mp-hero-author">Por <strong>{currentHero.author}</strong></p>
+              )}
+
+              <div className="mp-hero-tags">
+                {currentHero.tags?.slice(0, 4).map((tag) => (
+                  <span key={tag.id} className="mp-tag-pill">
+                    {tag.name}
+                  </span>
+                ))}
+              </div>
+
+              <p className="mp-hero-desc">
+                {currentHero.description ||
+                  "Descubre esta apasionante historia disponible ahora en la biblioteca digital Lura."}
+              </p>
+
+              <div className="mp-hero-actions">
+                {currentHero.latestVolume ? (
+                  <Link
+                    to={`/reader/${currentHero.id}/${currentHero.latestVolume.id}/1`}
+                    className="mp-btn mp-btn-primary"
+                  >
+                    <PlayIcon /> Leer Vol. {currentHero.latestVolume.number}
+                  </Link>
+                ) : (
+                  <Link
+                    to={`/manga/${currentHero.id}`}
+                    className="mp-btn mp-btn-primary"
+                  >
+                    <PlayIcon /> Comenzar a Leer
+                  </Link>
+                )}
+
+                <Link
+                  to={`/manga/${currentHero.id}`}
+                  className="mp-btn mp-btn-secondary"
+                >
+                  Ver Detalles
+                </Link>
+              </div>
+            </div>
+
+            {/* Hero Right Cover Poster */}
+            <div className="mp-hero-cover-wrap">
+              <Link to={`/manga/${currentHero.id}`} className="mp-hero-poster-link">
+                {currentHero.coverUrl ? (
+                  <ProtectedImage
+                    path={currentHero.coverUrl}
+                    alt={currentHero.title}
+                    className="mp-hero-poster"
+                  />
+                ) : (
+                  <div className="mp-hero-poster-fallback">
+                    <span>{currentHero.title}</span>
+                  </div>
+                )}
+                {currentHero.latestVolume && (
+                  <div className="mp-hero-poster-chapter-badge">
+                    Vol. {currentHero.latestVolume.number}
+                  </div>
+                )}
+              </Link>
+            </div>
+          </div>
+
+          {/* Carousel Controls */}
+          {featuredList.length > 1 && (
+            <div className="mp-hero-controls">
+              <button
+                type="button"
+                className="mp-hero-arrow"
+                onClick={() =>
+                  setActiveSlide((prev) => (prev === 0 ? featuredList.length - 1 : prev - 1))
+                }
+                aria-label="Slide anterior"
+              >
+                <ChevronLeftIcon />
+              </button>
+
+              <div className="mp-hero-dots">
+                {featuredList.map((item, idx) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`mp-hero-dot ${idx === activeSlide ? "active" : ""}`}
+                    onClick={() => setActiveSlide(idx)}
+                    aria-label={`Ir al manga ${idx + 1}`}
+                  />
+                ))}
+              </div>
+
+              <button
+                type="button"
+                className="mp-hero-arrow"
+                onClick={() =>
+                  setActiveSlide((prev) => (prev + 1) % featuredList.length)
+                }
+                aria-label="Siguiente slide"
+              >
+                <ChevronRightIcon />
+              </button>
+            </div>
+          )}
+        </section>
+      ) : null}
+
+      {/* 2. CONTINUE READING SHELF (If active progress) */}
+      {latestContinue && (
+        <section className="mp-continue-shelf">
+          <div className="mp-continue-inner">
+            <div className="mp-continue-left">
+              <div className="mp-continue-pulse" />
+              <div className="mp-continue-label">
+                <span className="mp-continue-tag">CONTINUAR LEYENDO</span>
+                <strong className="mp-continue-title">
+                  {latestContinue.mangaTitle || latestContinue.title || "Tu Lectura"}
+                </strong>
+                <span className="mp-continue-meta">
+                  {latestContinue.volumeNumber ? `Capítulo ${latestContinue.volumeNumber}` : ""} · Pág. {latestContinue.pageNumber}
+                </span>
+              </div>
+            </div>
+
+            <div className="mp-continue-right">
+              {latestContinue.progressPercent !== undefined && latestContinue.progressPercent > 0 && (
+                <div className="mp-continue-progress-wrap">
+                  <div className="mp-continue-progress-bar">
+                    <div
+                      className="mp-continue-progress-fill"
+                      style={{ width: `${latestContinue.progressPercent}%` }}
+                    />
+                  </div>
+                  <span className="mp-continue-progress-pct">
+                    {latestContinue.progressPercent}%
+                  </span>
+                </div>
+              )}
+
+              <Link
+                to={
+                  latestContinue.contentType === "BOOK"
+                    ? `/books/${latestContinue.bookId}/reader`
+                    : `/reader/${latestContinue.mangaId}/${latestContinue.volumeId}/${latestContinue.pageNumber}`
+                }
+                className="mp-btn mp-btn-accent-small"
+              >
+                Continuar <ArrowRightIcon />
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* 3. MAIN PORTAL GRID: Updates (Left) & Rankings (Right) */}
+      <div className="mp-portal-layout">
+        {/* LEFT COLUMN: LATEST UPDATES / CAPÍTULOS RECIENTES */}
+        <section className="mp-updates-section">
+          <div className="mp-section-header">
+            <div className="mp-section-title-wrap">
+              <h2 className="mp-section-title">
+                <span className="mp-title-indicator" /> Actualizaciones Recientes
+              </h2>
+              <span className="mp-section-subtitle">Novedades y capítulos recién publicados</span>
+            </div>
+
+            <Link to="/manga" className="mp-view-all-link">
+              Ver catálogo completo <ArrowRightIcon />
+            </Link>
+          </div>
+
+          {/* Genre Filter Pills */}
+          {tagsQuery.data && tagsQuery.data.length > 0 && (
+            <div className="mp-filter-tags-row">
+              <button
+                type="button"
+                className={`mp-filter-tag-chip ${selectedTag === null ? "active" : ""}`}
+                onClick={() => setSelectedTag(null)}
+              >
+                Todos
+              </button>
+              {tagsQuery.data.slice(0, 8).map((tag) => (
+                <button
+                  key={tag.id}
+                  type="button"
+                  className={`mp-filter-tag-chip ${selectedTag === tag.id ? "active" : ""}`}
+                  onClick={() => setSelectedTag(tag.id === selectedTag ? null : tag.id)}
+                >
+                  {tag.name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Loading / Error States */}
+          {updatesQuery.isLoading && <Loading />}
+          {updatesQuery.isError && <ErrorBox error={updatesQuery.error} />}
+
+          {/* Updates Grid */}
+          {!updatesQuery.isLoading && filteredUpdates.length === 0 ? (
+            <div className="mp-empty-state">
+              <BookOpenIcon />
+              <p>No hay actualizaciones disponibles en este momento.</p>
+            </div>
+          ) : (
+            <div className="mp-updates-grid">
+              {filteredUpdates.map((manga) => {
+                const latestVol = manga.latestVolume;
+                const chapterLabel = latestVol
+                  ? `VOL. ${latestVol.number}`
+                  : "DISPONIBLE";
+
+                return (
+                  <article key={manga.id} className="mp-update-card">
+                    <Link to={`/manga/${manga.id}`} className="mp-card-thumb-wrap">
+                      {manga.coverUrl ? (
+                        <ProtectedImage
+                          path={manga.coverUrl}
+                          alt={manga.title}
+                          className="mp-card-thumb"
+                        />
+                      ) : (
+                        <div className="mp-card-thumb-fallback">
+                          <span>{manga.title}</span>
+                        </div>
+                      )}
+
+                      {/* Chapter Badge */}
+                      <span className="mp-card-chapter-badge">
+                        {chapterLabel}
+                      </span>
+
+                      {/* Hover Overlay */}
+                      <div className="mp-card-hover-overlay">
+                        <span className="mp-card-hover-btn">Leer</span>
+                      </div>
+                    </Link>
+
+                    <div className="mp-card-meta">
+                      {manga.titleKanji && (
+                        <span className="mp-card-kanji">{manga.titleKanji}</span>
+                      )}
+                      <h3 className="mp-card-title">
+                        <Link to={`/manga/${manga.id}`}>{manga.title}</Link>
+                      </h3>
+
+                      <div className="mp-card-subinfo">
+                        <span className="mp-card-author">
+                          {manga.author || "Lura Manga"}
+                        </span>
+                        <span className="mp-card-time">
+                          <ClockIcon /> {formatRelativeTime(manga.createdAt)}
+                        </span>
+                      </div>
+
+                      {manga.tags && manga.tags.length > 0 && (
+                        <div className="mp-card-tags">
+                          {manga.tags.slice(0, 2).map((t) => (
+                            <span key={t.id} className="mp-mini-tag">
+                              {t.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* RIGHT COLUMN: MANGA PLUS LEADERBOARD & RANKINGS */}
+        <aside className="mp-rankings-section">
+          <div className="mp-section-header">
+            <div className="mp-section-title-wrap">
+              <h2 className="mp-section-title">
+                <span className="mp-ranking-fire"><FireIcon /></span> Hottest Rankings
+              </h2>
+              <span className="mp-section-subtitle">Los mangas más leídos por la comunidad</span>
+            </div>
+          </div>
+
+          {rankingsQuery.isLoading && <Loading />}
+          {rankingsQuery.isError && <ErrorBox error={rankingsQuery.error} />}
+
+          {!rankingsQuery.isLoading && rankings.length === 0 ? (
+            <div className="mp-empty-state">
+              <p>Los rankings se actualizarán a medida que la comunidad comience a leer.</p>
+            </div>
+          ) : (
+            <div className="mp-ranking-list">
+              {rankings.map((item, index) => {
+                const rankNum = item.rank || index + 1;
+                const isTop3 = rankNum <= 3;
+                const manga = item.manga;
 
                 return (
                   <Link
-                    key={`${item.contentType}-${item.mangaId || item.bookId}-${item.volumeId}`}
-                    to={targetUrl}
-                    className="continue-reading-card"
+                    key={`rank-${manga.id}-${rankNum}`}
+                    to={`/manga/${manga.id}`}
+                    className={`mp-ranking-item ${isTop3 ? `top-${rankNum}` : ""}`}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", minWidth: 0 }}>
-                      <div style={{ width: "44px", height: "58px", borderRadius: "6px", overflow: "hidden", flexShrink: 0 }}>
-                        {item.coverUrl ? (
-                          <ProtectedImage
-                            path={item.coverUrl}
-                            alt={title}
-                            className="recent-series-thumb"
-                          />
-                        ) : (
-                          <div
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              background: "var(--bg-elevated)",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              color: "var(--text-muted)",
-                            }}
-                          >
-                            <BookPlaceholderIcon />
-                          </div>
-                        )}
+                    {/* Stylized Rank Number */}
+                    <div className={`mp-rank-number rank-${rankNum}`}>
+                      {rankNum}
+                    </div>
+
+                    {/* Manga Thumbnail */}
+                    <div className="mp-ranking-thumb-wrap">
+                      {manga.coverUrl ? (
+                        <ProtectedImage
+                          path={manga.coverUrl}
+                          alt={manga.title}
+                          className="mp-ranking-thumb"
+                        />
+                      ) : (
+                        <div className="mp-ranking-thumb-fallback">
+                          M
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Manga Ranking Info */}
+                    <div className="mp-ranking-info">
+                      <div className="mp-ranking-title-row">
+                        <span className="mp-ranking-title">{manga.title}</span>
                       </div>
-                      <div className="continue-reading-info">
-                        <span className="continue-reading-title">{title}</span>
-                        <span className="continue-reading-sub">
-                          {label} · Pág. {item.pageNumber}
+
+                      {manga.titleKanji && (
+                        <span className="mp-ranking-kanji">{manga.titleKanji}</span>
+                      )}
+
+                      <div className="mp-ranking-meta-row">
+                        <span className="mp-ranking-author">
+                          {manga.author || "Manga"}
                         </span>
-                        {progressPct > 0 && (
-                          <div
-                            style={{
-                              width: "100%",
-                              height: "3px",
-                              borderRadius: "999px",
-                              background: "rgba(255,255,255,0.1)",
-                              overflow: "hidden",
-                              marginTop: "0.15rem",
-                            }}
-                          >
-                            <div
-                              style={{
-                                width: `${progressPct}%`,
-                                height: "100%",
-                                background: "var(--accent-gold)",
-                              }}
-                            />
-                          </div>
-                        )}
+                        <span className="mp-ranking-views">
+                          <FireIcon /> {item.readersCount > 0 ? `${item.readersCount} views` : "Popular"}
+                        </span>
                       </div>
                     </div>
-                    <span className="continue-reading-btn">Leer</span>
                   </Link>
                 );
-              })
-            ) : (
-              <p className="muted-text" style={{ margin: "1rem 0" }}>
-                No tienes lecturas pendientes. ¡Explora el catálogo de mangas o libros!
-              </p>
-            )}
-          </div>
-        </article>
+              })}
+            </div>
+          )}
 
-        {/* Reading Stats Card */}
-        <article className="card">
-          <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <span style={{ display: "inline-flex", color: "var(--accent-gold)" }}><ChartIcon /></span> Estadísticas de Lectura
-          </h2>
-          {statsQuery.isLoading && <Loading />}
-          {statsQuery.isError && <ErrorBox error={statsQuery.error} />}
-          {statsQuery.data && (
-            <div style={{ display: "grid", gap: "0.9rem" }}>
-              {/* XP Level Bar */}
-              <div
-                style={{
-                  background: "var(--bg-surface)",
-                  border: "1px solid var(--border-subtle)",
-                  borderRadius: "var(--radius-md)",
-                  padding: "0.75rem 0.9rem",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    fontSize: "0.8rem",
-                    fontWeight: 600,
-                    marginBottom: "0.35rem",
-                  }}
-                >
-                  <span style={{ color: "var(--accent-gold)" }}>
-                    Nivel {statsQuery.data.readingLevel}
-                  </span>
-                  <span style={{ color: "var(--text-muted)" }}>
-                    {statsQuery.data.xpInLevel} / {statsQuery.data.xpToNextLevel} XP
-                  </span>
-                </div>
-                <div
-                  style={{
-                    width: "100%",
-                    height: "6px",
-                    borderRadius: "999px",
-                    background: "rgba(255,255,255,0.08)",
-                    overflow: "hidden",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: `${statsQuery.data.xpProgressPercent}%`,
-                      height: "100%",
-                      background: "linear-gradient(90deg, #d97706, #f59e0b)",
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* KPI Cards Grid */}
-              <div className="stats-kpi-grid">
-                <div className="stat-kpi-item">
-                  <span className="stat-kpi-label">Tiempo Total</span>
-                  <span className="stat-kpi-val highlight">
-                    {formatReadingTime(statsQuery.data.totalSeconds)}
-                  </span>
-                </div>
-                <div className="stat-kpi-item">
-                  <span className="stat-kpi-label">Páginas Leídas</span>
-                  <span className="stat-kpi-val">
-                    {statsQuery.data.totalPagesRead}
-                  </span>
-                </div>
-                <div className="stat-kpi-item">
-                  <span className="stat-kpi-label">Mangas / Libros</span>
-                  <span className="stat-kpi-val">
-                    {statsQuery.data.totalMangasRead} / {statsQuery.data.totalBooksRead}
-                  </span>
-                </div>
-                <div className="stat-kpi-item">
-                  <span className="stat-kpi-label">Sesiones</span>
-                  <span className="stat-kpi-val">
-                    {statsQuery.data.totalSessions}
-                  </span>
-                </div>
+          {/* Quick Japanese Categories Widget */}
+          {tagsQuery.data && tagsQuery.data.length > 0 && (
+            <div className="mp-tags-card">
+              <h3 className="mp-tags-card-title">Explorar Géneros</h3>
+              <div className="mp-tags-card-grid">
+                {tagsQuery.data.map((tag) => (
+                  <Link
+                    key={tag.id}
+                    to={`/manga?tagIds=${tag.id}`}
+                    className="mp-tag-chip-link"
+                  >
+                    #{tag.name}
+                  </Link>
+                ))}
               </div>
             </div>
           )}
-        </article>
+        </aside>
       </div>
-
-      {/* Recent Books & Manga Activity */}
-      {(recentSeriesQuery.data?.manga?.length || recentSeriesQuery.data?.books?.length) ? (
-        <article className="card">
-          <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <span style={{ display: "inline-flex", color: "var(--accent-gold)" }}><LibraryIcon /></span> Actividad Reciente
-          </h2>
-          {recentSeriesQuery.isLoading && <Loading />}
-          {recentSeriesQuery.isError && <ErrorBox error={recentSeriesQuery.error} />}
-          
-          <div className="recent-series-grid">
-            {recentSeriesQuery.data?.manga.map((item) => (
-              <Link
-                key={`recent-manga-${item.contentId}`}
-                to={`/manga/${item.contentId}`}
-                className="recent-series-card"
-              >
-                {item.coverUrl ? (
-                  <ProtectedImage
-                    path={item.coverUrl}
-                    alt={item.title}
-                    className="recent-series-thumb"
-                  />
-                ) : (
-                  <div className="recent-series-thumb manga-poster-fallback">
-                    Manga
-                  </div>
-                )}
-                <div className="recent-series-title">{item.title}</div>
-              </Link>
-            ))}
-
-            {recentSeriesQuery.data?.books.map((item) => (
-              <Link
-                key={`recent-book-${item.contentId}`}
-                to={`/books/${item.contentId}`}
-                className="recent-series-card"
-              >
-                {item.coverUrl ? (
-                  <ProtectedImage
-                    path={item.coverUrl}
-                    alt={item.title}
-                    className="recent-series-thumb"
-                  />
-                ) : (
-                  <div className="recent-series-thumb manga-poster-fallback">
-                    Book
-                  </div>
-                )}
-                <div className="recent-series-title">{item.title}</div>
-              </Link>
-            ))}
-          </div>
-        </article>
-      ) : null}
     </div>
   );
 }
