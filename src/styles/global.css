@@ -1515,20 +1515,25 @@ select {
    READER (MANGA & EPUB)
    ======================================================== */
 .reader-shell {
-  min-height: 100vh;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
   background: #000000;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  position: relative;
   user-select: none;
+  z-index: 90;
 }
 
 .reader-topbar {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 56px;
+  height: 52px;
   background: rgba(9, 9, 11, 0.88);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -1613,20 +1618,21 @@ select {
 }
 
 .reader-viewport {
-  flex: 1;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 56px 0 68px;
-  min-height: 100vh;
-  width: 100%;
+  padding: 56px 16px 72px 16px;
+  box-sizing: border-box;
   overflow: hidden;
-  position: relative;
 }
 
 .reader-stage {
   width: 100%;
-  height: calc(100vh - 124px);
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1647,7 +1653,7 @@ select {
 .reader-image,
 .reader-page-image {
   max-height: calc(100vh - 140px);
-  max-width: 96vw;
+  max-width: calc(100vw - 32px);
   width: auto;
   height: auto;
   object-fit: contain;
@@ -1655,6 +1661,7 @@ select {
   border-radius: 4px;
   display: block;
   pointer-events: none;
+  margin: 0 auto;
 }
 
 .reader-bottombar,
