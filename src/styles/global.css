@@ -248,12 +248,36 @@ select {
   position: relative;
 }
 
+.profile-hero-avatar-button {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: block;
+}
+
+.profile-hero-avatar-button:focus-visible {
+  outline: 2px solid #5d87ff;
+  outline-offset: 2px;
+}
+
+.profile-hero-avatar-button:disabled {
+  cursor: wait;
+}
+
 .profile-hero-avatar {
   width: 100%;
   height: 100%;
   border-radius: 8px;
   object-fit: cover;
   border: 1px solid #30486d;
+  display: block;
 }
 
 .profile-hero-avatar-fallback {
@@ -264,6 +288,48 @@ select {
   font-weight: 800;
   background: #1b2a42;
   color: #e8f2ff;
+}
+
+.profile-hero-avatar-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 15, 25, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s ease-in-out;
+  border-radius: 8px;
+  color: #f0f6fc;
+  pointer-events: none;
+}
+
+.profile-hero-avatar-button:hover .profile-hero-avatar-overlay,
+.profile-hero-avatar-button:focus-visible .profile-hero-avatar-overlay,
+.profile-hero-avatar-button.is-uploading .profile-hero-avatar-overlay {
+  opacity: 1;
+}
+
+.profile-avatar-camera-icon {
+  width: 24px;
+  height: 24px;
+  stroke: #ffffff;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+}
+
+.profile-avatar-spinner {
+  width: 22px;
+  height: 22px;
+  border: 2.5px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: profile-spin 0.75s linear infinite;
+}
+
+@keyframes profile-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .profile-hero-meta {
@@ -287,6 +353,13 @@ select {
   margin: 0;
 }
 
+.profile-upload-error {
+  color: #ff6b6b;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin: 0.25rem 0 0 0;
+}
+
 .profile-level-badge {
   position: absolute;
   right: -8px;
@@ -302,18 +375,8 @@ select {
   justify-content: center;
   font-size: 1rem;
   font-weight: 800;
-}
-
-.profile-settings-button {
-  min-width: 98px;
-  height: 38px;
-  margin: 0;
-  background: #4f5564;
-  color: #f7fbff;
-  font-size: 0.95rem;
-  font-weight: 700;
-  border-radius: 9px;
-  padding: 0 1rem;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .profile-v2-grid {

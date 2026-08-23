@@ -1,11 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ErrorBox } from "@/components/ErrorBox";
 import { Loading } from "@/components/Loading";
 import { ProtectedImage } from "@/components/ProtectedImage";
 import { getContinueReading, getReadingStats, getRecentSeries } from "@/features/reading/api";
-import { getMe } from "@/features/users/api";
+import { getMe, uploadProfileImage } from "@/features/users/api";
 
 function formatRegistrationDate(createdAt: string): string {
   if (!createdAt) return "Registro: fecha no disponible";
@@ -59,10 +59,46 @@ function resolveVolumeLabel(item: {
 }
 
 export function ProfilePage() {
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
   const meQuery = useQuery({
     queryKey: ["me"],
     queryFn: getMe,
   });
+
+  const uploadMutation = useMutation({
+    mutationFn: (file: File) => uploadProfileImage(file),
+    onSuccess: () => {
+      setUploadError(null);
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+    },
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : "Error al subir la imagen";
+      setUploadError(message);
+    },
+  });
+
+  const handleAvatarClick = () => {
+    if (uploadMutation.isPending) return;
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    e.target.value = "";
+
+    if (!file.type.startsWith("image/")) {
+      setUploadError("Por favor selecciona un archivo de imagen válido.");
+      return;
+    }
+
+    setUploadError(null);
+    uploadMutation.mutate(file);
+  };
 
   const statsQuery = useQuery({
     queryKey: ["reading-stats"],
@@ -92,7 +128,7 @@ export function ProfilePage() {
     if (statsTab === "books") {
       const books = statsQuery.data?.totalBooksRead ?? 0;
       const chapters = statsQuery.data?.totalChaptersRead ?? 0;
-      return `Libros: ${books} | Cap\u00edtulos: ${chapters} | Paginas: ${pages}`;
+      return `Libros: ${books} | Capítulos: ${chapters} | Paginas: ${pages}`;
     }
     const series = statsQuery.data?.totalSeriesRead ?? 0;
     const volumes = statsQuery.data?.totalVolumesRead ?? 0;
@@ -142,29 +178,65 @@ export function ProfilePage() {
       <article className="card profile-hero-card">
         <div className="profile-hero-main">
           <div className="profile-hero-avatar-wrap">
-            {meQuery.data?.profileImageUrl ? (
-              <ProtectedImage
-                path={meQuery.data.profileImageUrl}
-                alt={`Avatar de ${username}`}
-                className="profile-hero-avatar"
-              />
-            ) : (
-              <div className="profile-hero-avatar profile-hero-avatar-fallback">
-                {username.charAt(0).toUpperCase()}
+            <button
+              type="button"
+              className={`profile-hero-avatar-button${uploadMutation.isPending ? " is-uploading" : ""}`}
+              onClick={handleAvatarClick}
+              disabled={uploadMutation.isPending}
+              aria-label="Cambiar foto de perfil"
+              title="Cambiar foto de perfil"
+            >
+              {meQuery.data?.profileImageUrl ? (
+                <ProtectedImage
+                  path={meQuery.data.profileImageUrl}
+                  alt={`Avatar de ${username}`}
+                  className="profile-hero-avatar"
+                />
+              ) : (
+                <div className="profile-hero-avatar profile-hero-avatar-fallback">
+                  {username.charAt(0).toUpperCase()}
+                </div>
+              )}
+
+              <div className="profile-hero-avatar-overlay">
+                {uploadMutation.isPending ? (
+                  <span className="profile-avatar-spinner" aria-hidden="true" />
+                ) : (
+                  <svg
+                    className="profile-avatar-camera-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg>
+                )}
               </div>
-            )}
+            </button>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              style={{ display: "none" }}
+              onChange={handleFileChange}
+              tabIndex={-1}
+            />
+
             <span className="profile-level-badge">{readingLevel}</span>
           </div>
 
           <div className="profile-hero-meta">
             <h1>{username}</h1>
             <p className="muted-text">{registrationLabel}</p>
+            {uploadError && <p className="profile-upload-error">{uploadError}</p>}
           </div>
-
         </div>
-        <button type="button" className="profile-settings-button">
-          Ajustes
-        </button>
       </article>
 
       <div className="profile-v2-grid">
