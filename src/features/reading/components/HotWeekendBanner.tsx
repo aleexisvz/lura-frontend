@@ -60,7 +60,7 @@ export function HotWeekendBanner() {
               <strong className="mp-hot-weekend-title">¡Doble Experiencia Activa!</strong>
             </div>
             <p className="mp-hot-weekend-desc">
-              Gana <strong>4 XP por minuto</strong> al leer mangas y libros durante todo el fin de semana.
+              Aprovecha el bono de <strong>doble experiencia</strong> al leer mangas y libros durante todo el fin de semana.
             </p>
           </div>
         </div>
