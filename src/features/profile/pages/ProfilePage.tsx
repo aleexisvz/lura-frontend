@@ -298,18 +298,22 @@ export function ProfilePage() {
                   </div>
                   <div className="stat-kpi-item">
                     <span className="stat-kpi-label">
-                      {statsTab === "books" ? "Libros / Capítulos" : "Mangas / Volúmenes"}
+                      {statsTab === "books" ? "Libros" : "Mangas"}
                     </span>
                     <span className="stat-kpi-val">
                       {statsTab === "books"
-                        ? `${statsQuery.data.totalBooksRead ?? 0} / ${statsQuery.data.totalChaptersRead ?? 0}`
-                        : `${statsQuery.data.totalMangasRead ?? statsQuery.data.totalSeriesRead ?? 0} / ${statsQuery.data.totalVolumesRead ?? 0}`}
+                        ? statsQuery.data.totalBooksRead ?? 0
+                        : statsQuery.data.totalMangasRead ?? statsQuery.data.totalSeriesRead ?? 0}
                     </span>
                   </div>
                   <div className="stat-kpi-item">
-                    <span className="stat-kpi-label">Sesiones</span>
+                    <span className="stat-kpi-label">
+                      {statsTab === "books" ? "Capítulos" : "Volúmenes"}
+                    </span>
                     <span className="stat-kpi-val">
-                      {statsQuery.data.totalSessions}
+                      {statsTab === "books"
+                        ? statsQuery.data.totalChaptersRead ?? 0
+                        : statsQuery.data.totalVolumesRead ?? 0}
                     </span>
                   </div>
                 </div>
