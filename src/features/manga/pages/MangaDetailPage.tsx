@@ -267,12 +267,20 @@ export function MangaDetailPage() {
                 </span>
               </div>
 
-              {mangaQuery.data.categories.length > 0 && (
+              {((mangaQuery.data.tags && mangaQuery.data.tags.length > 0) || mangaQuery.data.categories.length > 0) && (
                 <div className="manga-hero-tags">
-                  {mangaQuery.data.categories.map((category) => (
-                    <span key={category} className="manga-hero-tag">
-                      {category}
-                    </span>
+                  {(mangaQuery.data.tags && mangaQuery.data.tags.length > 0
+                    ? mangaQuery.data.tags
+                    : mangaQuery.data.categories.map((c) => ({ id: c, name: c }))
+                  ).map((tag) => (
+                    <Link
+                      key={tag.id || tag.name}
+                      to={`/manga?tagIds=${tag.id}`}
+                      className="manga-hero-tag"
+                      title={`Ver mangas del género ${tag.name}`}
+                    >
+                      #{tag.name}
+                    </Link>
                   ))}
                 </div>
               )}
