@@ -18,7 +18,7 @@ import { ReaderShell } from "@/features/reader/components/ReaderShell";
 import { useReaderHotkeys } from "@/features/reader/hooks/useReaderHotkeys";
 import { useAFKTimer } from "@/features/reader/hooks/useAFKTimer";
 
-const NAVIGATION_INTERVAL_MS = 4000;
+const NAVIGATION_INTERVAL_MS = 2000;
 
 export function MangaReaderPage() {
   const navigate = useNavigate();
