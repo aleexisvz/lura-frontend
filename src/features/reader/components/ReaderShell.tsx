@@ -7,6 +7,9 @@ type ReaderShellProps = {
   sliderValue: number;
   isFullscreen: boolean;
   isBusy?: boolean;
+  zoom?: number;
+  onZoomChange?: (zoom: number) => void;
+  onResetZoom?: () => void;
   onClose: () => void;
   onPrev: () => void;
   onNext: () => void;
@@ -27,6 +30,9 @@ export function ReaderShell(props: ReaderShellProps) {
     sliderValue,
     isFullscreen,
     isBusy = false,
+    zoom = 100,
+    onZoomChange,
+    onResetZoom,
     onClose,
     onPrev,
     onNext,
@@ -92,9 +98,6 @@ export function ReaderShell(props: ReaderShellProps) {
           ‹
         </button>
         <div className="reader-progress-wrap">
-          <div className="reader-progress-meta">
-            <span>{progressPercent}%</span>
-          </div>
           <input
             className="reader-progress-input"
             type="range"
@@ -106,6 +109,9 @@ export function ReaderShell(props: ReaderShellProps) {
             aria-label="Progreso de lectura"
             disabled={isBusy}
           />
+          <div className="reader-progress-meta">
+            <span>{progressPercent}%</span>
+          </div>
         </div>
         <button
           type="button"
@@ -117,20 +123,67 @@ export function ReaderShell(props: ReaderShellProps) {
         >
           ›
         </button>
+
+        {onZoomChange && (
+          <>
+            <div className="reader-dock-divider" />
+            <div className="reader-zoom-group">
+              <button
+                type="button"
+                className="reader-zoom-btn"
+                onClick={() => onZoomChange(Math.max(50, zoom - 25))}
+                title="Alejar (-)"
+                disabled={zoom <= 50}
+                aria-label="Alejar"
+              >
+                −
+              </button>
+              <input
+                type="range"
+                min={50}
+                max={300}
+                step={5}
+                value={zoom}
+                onChange={(e) => onZoomChange(Number(e.target.value))}
+                className="reader-zoom-slider"
+                aria-label="Nivel de zoom"
+                title={`Zoom: ${zoom}%`}
+              />
+              <button
+                type="button"
+                className="reader-zoom-btn"
+                onClick={() => onZoomChange(Math.min(300, zoom + 25))}
+                title="Acercar (+)"
+                disabled={zoom >= 300}
+                aria-label="Acercar"
+              >
+                +
+              </button>
+              <button
+                type="button"
+                className={`reader-zoom-badge${zoom === 100 ? " is-default" : ""}`}
+                onClick={onResetZoom}
+                title="Doble clic en la imagen o clic aquí para ajustar a pantalla (100%)"
+              >
+                {zoom}%
+              </button>
+            </div>
+          </>
+        )}
       </footer>
 
       {showInfo && (
         <div className="reader-info-backdrop" role="dialog" aria-modal="true">
           <div className="reader-info-modal">
-            <h2>Atajos de teclado</h2>
+            <h2>Atajos y Navegación</h2>
             <ul>
-              <li>Flecha derecha: avanzar pagina</li>
-              <li>Flecha izquierda: retroceder pagina</li>
-              <li>Espacio: avanzar pagina</li>
-              <li>F: entrar/salir de pantalla completa</li>
+              <li>Flechas o Espacio: avanzar / retroceder página</li>
+              <li>Doble clic: alternar zoom y ajuste de pantalla</li>
+              <li>Arrastrar con el mouse: desplazar la vista en zoom</li>
+              <li>F: entrar / salir de pantalla completa</li>
             </ul>
             <button type="button" className="reader-close-button" onClick={() => setShowInfo(false)}>
-              Cerrar
+              Entendido
             </button>
           </div>
         </div>

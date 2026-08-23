@@ -298,6 +298,59 @@ export function MangaReaderPage() {
     }
   });
 
+  const [zoom, setZoom] = useState(100);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef({ startX: 0, startY: 0, panX: 0, panY: 0 });
+
+  useEffect(() => {
+    setZoom(100);
+    setPan({ x: 0, y: 0 });
+  }, [currentPage]);
+
+  const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (zoom !== 100) {
+      setZoom(100);
+      setPan({ x: 0, y: 0 });
+    } else {
+      setZoom(180);
+      const rect = e.currentTarget.getBoundingClientRect();
+      const clickX = e.clientX - rect.left - rect.width / 2;
+      const clickY = e.clientY - rect.top - rect.height / 2;
+      setPan({ x: -clickX * 0.7, y: -clickY * 0.7 });
+    }
+  };
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (zoom <= 100 || e.button !== 0) return;
+    setIsDragging(true);
+    dragStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      panX: pan.x,
+      panY: pan.y,
+    };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging || zoom <= 100) return;
+    const dx = e.clientX - dragStartRef.current.startX;
+    const dy = e.clientY - dragStartRef.current.startY;
+    setPan({
+      x: dragStartRef.current.panX + dx,
+      y: dragStartRef.current.panY + dy,
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleResetZoom = useCallback(() => {
+    setZoom(100);
+    setPan({ x: 0, y: 0 });
+  }, []);
+
   const progressPercent =
     maxPage <= minPage ? 0 : Math.round(((currentPage - minPage) / (maxPage - minPage)) * 100);
 
@@ -309,6 +362,14 @@ export function MangaReaderPage() {
       sliderValue={sliderPage}
       isFullscreen={isFullscreen}
       isBusy={saveProgressMutation.isPending}
+      zoom={zoom}
+      onZoomChange={(newZoom) => {
+        setZoom(newZoom);
+        if (newZoom === 100) {
+          setPan({ x: 0, y: 0 });
+        }
+      }}
+      onResetZoom={handleResetZoom}
       onClose={() => {
         endSessionIfNeeded(true);
         navigate(`/manga/${mangaId}`);
@@ -323,14 +384,43 @@ export function MangaReaderPage() {
         void goToPage(nextPage);
       }}
     >
-      {pagesQuery.isLoading && <Loading text="Cargando paginas..." />}
+      {pagesQuery.isLoading && <Loading text="Cargando páginas..." />}
       {pagesQuery.isError && <ErrorBox error={pagesQuery.error} />}
 
-      {imageUrl && <img src={imageUrl} alt={`Pagina ${currentPage}`} className="reader-image" />}
+      <div
+        className="reader-stage"
+        onDoubleClick={handleDoubleClick}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        style={{
+          cursor: zoom > 100 ? (isDragging ? "grabbing" : "grab") : "zoom-in",
+          userSelect: "none",
+        }}
+      >
+        {imageUrl && (
+          <div
+            className="reader-image-wrap"
+            style={{
+              transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom / 100})`,
+              transformOrigin: "center center",
+              transition: isDragging ? "none" : "transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)",
+            }}
+          >
+            <img
+              src={imageUrl}
+              alt={`Página ${currentPage}`}
+              className="reader-image"
+              draggable={false}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Precarga de imágenes ocultas para cachear */}
       <div style={{ display: "none" }} aria-hidden="true">
-        {preloadUrls.map(url => (
+        {preloadUrls.map((url) => (
           <img key={url} src={url} alt="" />
         ))}
       </div>
