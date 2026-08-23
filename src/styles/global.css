@@ -1143,6 +1143,298 @@ select {
 }
 
 /* Volume list & cards */
+.manga-volumes-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.volume-order-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.volume-order-control span {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.volume-order-control select {
+  width: auto;
+  min-width: 120px;
+  height: 36px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.82rem;
+}
+
+.volume-poster-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+}
+
+.volume-poster-card {
+  position: relative;
+  display: block;
+  aspect-ratio: 3 / 4.2;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  color: #ffffff;
+  box-shadow: var(--shadow-card);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.volume-poster-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-hover);
+}
+
+.volume-poster-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.volume-poster-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.volume-pages-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(0, 0, 0, 0.82);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  padding: 0.12rem 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  backdrop-filter: blur(8px);
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.volume-pages-badge--completed {
+  color: var(--success);
+  border-color: var(--success-border);
+  background: rgba(16, 185, 129, 0.15);
+}
+
+.volume-pages-badge--reading {
+  color: var(--accent-gold);
+  border-color: rgba(245, 158, 11, 0.35);
+  background: var(--accent-gold-surface);
+}
+
+.volume-hover-layer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 30%, rgba(0, 0, 0, 0.9) 100%);
+  display: flex;
+  align-items: flex-end;
+  padding: 0.65rem;
+}
+
+.volume-hover-title {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 1.25;
+}
+
+.manga-continue-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.15rem;
+  background: var(--accent-gold);
+  color: #000000;
+  font-weight: 700;
+  font-size: 0.88rem;
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.25);
+  transition: all 0.18s ease;
+  margin-top: 0.5rem;
+  width: fit-content;
+}
+
+.manga-continue-link:hover {
+  background: var(--accent-gold-hover);
+  color: #000000;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.38);
+}
+
+/* Book Detail Page Elements */
+.book-hero-card {
+  position: relative;
+  padding: 1.75rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.book-hero-grid {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 1.75rem;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .book-hero-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.book-hero-cover {
+  width: 100%;
+  aspect-ratio: 3 / 4.2;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  border: 1px solid var(--border-medium);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+}
+
+.book-hero-content {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.book-hero-kicker {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-gold);
+}
+
+.book-hero-title {
+  margin: 0;
+  font-size: clamp(1.8rem, 2.5vw, 2.5rem);
+  font-family: var(--font-display);
+  color: #ffffff;
+}
+
+.book-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.85rem;
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+}
+
+.book-hero-pill {
+  display: inline-flex;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.76rem;
+}
+
+.book-hero-status {
+  padding: 0.18rem 0.6rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.book-hero-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.book-hero-tag {
+  display: inline-flex;
+  padding: 0.2rem 0.65rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+}
+
+.book-hero-description {
+  color: var(--text-secondary);
+  line-height: 1.65;
+  margin: 0.35rem 0;
+  max-width: 75ch;
+}
+
+.book-reader-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1.4rem;
+  background: var(--accent-gold);
+  color: #000000;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 12px rgba(245, 158, 11, 0.3);
+  transition: all 0.18s ease;
+  width: fit-content;
+}
+
+.book-reader-cta:hover {
+  background: var(--accent-gold-hover);
+  color: #000000;
+  transform: translateY(-1px);
+}
+
+.book-meta-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+@media (max-width: 768px) {
+  .book-meta-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+.book-meta-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.book-meta-value {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+
 .volume-grid {
   display: grid;
   gap: 0.75rem;
