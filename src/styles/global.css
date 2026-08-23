@@ -834,13 +834,15 @@ select {
 }
 
 /* Posters Grid */
-.manga-poster-grid {
+.manga-poster-grid,
+.book-poster-grid {
   display: grid;
   gap: 1.25rem;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
 }
 
-.manga-poster-card {
+.manga-poster-card,
+.book-poster-card {
   position: relative;
   display: block;
   aspect-ratio: 3 / 4.2;
@@ -853,20 +855,23 @@ select {
   transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.manga-poster-card:hover {
+.manga-poster-card:hover,
+.book-poster-card:hover {
   transform: translateY(-4px);
   border-color: var(--border-hover);
   box-shadow: var(--shadow-hover);
 }
 
-.manga-poster-image {
+.manga-poster-image,
+.book-poster-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
 
-.manga-poster-fallback {
+.manga-poster-fallback,
+.book-poster-fallback {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -878,18 +883,47 @@ select {
   font-size: 0.9rem;
 }
 
+.manga-volume-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  padding: 0.15rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  z-index: 10;
+  backdrop-filter: blur(8px);
+}
+
+.manga-hover-layer,
+.book-hover-layer,
 .manga-poster-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.1) 30%, rgba(0, 0, 0, 0.95) 100%);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.05) 30%, rgba(0, 0, 0, 0.92) 100%);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   padding: 0.85rem;
   gap: 0.35rem;
+  transition: all 0.2s ease;
 }
 
-.manga-poster-title {
+.manga-hover-layer.is-reading,
+.book-hover-layer.is-reading {
+  border-bottom: 3px solid var(--accent-gold);
+}
+
+.manga-hover-layer.is-completed,
+.book-hover-layer.is-completed {
+  border-bottom: 3px solid var(--success);
+}
+
+.manga-poster-title,
+.book-poster-title {
   margin: 0;
   font-size: 0.92rem;
   font-weight: 700;
@@ -897,6 +931,14 @@ select {
   line-height: 1.25;
 }
 
+.manga-poster-subtitle,
+.book-poster-subtitle {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
+.manga-hover-tags,
 .manga-poster-chips {
   display: flex;
   align-items: center;
@@ -904,6 +946,7 @@ select {
   flex-wrap: wrap;
 }
 
+.manga-tag,
 .manga-poster-badge {
   font-size: 0.68rem;
   font-weight: 700;
@@ -912,11 +955,49 @@ select {
   background: rgba(0, 0, 0, 0.7);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
+  text-transform: uppercase;
 }
 
+.manga-tag-status,
 .manga-poster-badge.is-finished {
   color: var(--accent-gold);
   border-color: rgba(245, 158, 11, 0.35);
+}
+
+.book-status-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border-radius: var(--radius-sm);
+  padding: 0.15rem 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  z-index: 10;
+  backdrop-filter: blur(8px);
+}
+
+.book-status-badge.is-ready {
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  color: var(--success);
+}
+
+.book-status-badge.is-processing {
+  background: var(--accent-gold-surface);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: var(--accent-gold);
+}
+
+.book-status-badge.is-failed {
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  color: var(--danger);
+}
+
+.book-status-badge.is-pending {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
 }
 
 .manga-poster-progress {
