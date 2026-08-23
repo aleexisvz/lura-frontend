@@ -534,6 +534,9 @@ export function BookReaderPage() {
       window.removeEventListener("pagehide", onPageHide);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       endSessionIfNeeded();
+      if (document.fullscreenElement) {
+        void document.exitFullscreen().catch(() => {});
+      }
     };
   }, []);
 
@@ -709,7 +712,14 @@ export function BookReaderPage() {
           </button>
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
+              if (document.fullscreenElement) {
+                try {
+                  await document.exitFullscreen();
+                } catch {
+                  // ignore
+                }
+              }
               endSessionIfNeeded(true);
               navigate(`/books/${bookId}`);
             }}

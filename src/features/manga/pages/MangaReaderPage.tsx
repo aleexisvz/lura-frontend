@@ -157,6 +157,9 @@ export function MangaReaderPage() {
   useEffect(() => {
     return () => {
       endSessionIfNeeded();
+      if (document.fullscreenElement) {
+        void document.exitFullscreen().catch(() => {});
+      }
     };
   }, [endSessionIfNeeded]);
 
@@ -370,7 +373,14 @@ export function MangaReaderPage() {
         }
       }}
       onResetZoom={handleResetZoom}
-      onClose={() => {
+      onClose={async () => {
+        if (document.fullscreenElement) {
+          try {
+            await document.exitFullscreen();
+          } catch {
+            // ignore exit errors
+          }
+        }
         endSessionIfNeeded(true);
         navigate(`/manga/${mangaId}`);
       }}
