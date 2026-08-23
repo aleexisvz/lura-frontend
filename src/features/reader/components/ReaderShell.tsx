@@ -79,7 +79,8 @@ export function ReaderShell(props: ReaderShellProps) {
             )}
           </button>
           <button type="button" className="reader-close-button" onClick={onClose} title="Cerrar visor">
-            ✕ Salir
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: "inline-block", verticalAlign: "middle", marginRight: "0.35rem" }}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <span>Salir</span>
           </button>
         </div>
       </header>
@@ -95,7 +96,7 @@ export function ReaderShell(props: ReaderShellProps) {
           aria-label="Página anterior"
           title="Página anterior"
         >
-          ‹
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
         <div className="reader-progress-wrap">
           <input
@@ -121,7 +122,7 @@ export function ReaderShell(props: ReaderShellProps) {
           aria-label="Página siguiente"
           title="Página siguiente"
         >
-          ›
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
 
         {onZoomChange && (

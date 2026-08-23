@@ -47,6 +47,23 @@ function VolumePosterCard({
     </svg>
   );
 
+  const CheckIcon = () => (
+    <svg
+      viewBox="0 0 24 24"
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ display: "inline", verticalAlign: "middle", flexShrink: 0 }}
+    >
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+
   return (
     <Link
       to={`/reader/${mangaId}/${volume.id}/${startPage}`}
@@ -60,7 +77,7 @@ function VolumePosterCard({
       )}
 
       <span className={badgeClass}>
-        {isCompleted && <>✓ {pagesCount}</>}
+        {isCompleted && <><CheckIcon /> {pagesCount}</>}
         {isInProgress && <><BookIcon /> {pagesCount}</>}
         {!isCompleted && !isInProgress && pagesCount}
       </span>

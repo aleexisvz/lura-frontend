@@ -16,6 +16,40 @@ function formatReadingTime(totalSeconds: number): string {
   return `${minutes}m`;
 }
 
+const StarIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+  </svg>
+);
+
+const ZapIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+  </svg>
+);
+
+const ChartIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <line x1="12" y1="20" x2="12" y2="10" />
+    <line x1="18" y1="20" x2="18" y2="4" />
+    <line x1="6" y1="20" x2="6" y2="16" />
+  </svg>
+);
+
+const LibraryIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+  </svg>
+);
+
+const BookPlaceholderIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+  </svg>
+);
+
 export function HomePage() {
   const { email, role } = useAuth();
 
@@ -44,8 +78,8 @@ export function HomePage() {
           <h1>Biblioteca Digital</h1>
           <div className="home-hero-meta">
             <span>{email || "Sesión activa"}</span>
-            <span className="home-hero-badge">
-              ⭐ Nivel {statsQuery.data?.readingLevel ?? 1}
+            <span className="home-hero-badge" style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}>
+              <StarIcon /> Nivel {statsQuery.data?.readingLevel ?? 1}
             </span>
             {role === "ADMIN" && (
               <span className="home-hero-badge">ADMIN</span>
@@ -71,8 +105,8 @@ export function HomePage() {
       <div className="grid grid-2">
         {/* Continue Reading Card */}
         <article className="card">
-          <h2>
-            <span>⚡</span> Continuar Leyendo
+          <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span style={{ display: "inline-flex", color: "var(--accent-gold)" }}><ZapIcon /></span> Continuar Leyendo
           </h2>
           {continueQuery.isLoading && <Loading />}
           {continueQuery.isError && <ErrorBox error={continueQuery.error} />}
@@ -116,11 +150,10 @@ export function HomePage() {
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "center",
-                              fontSize: "0.75rem",
                               color: "var(--text-muted)",
                             }}
                           >
-                            📖
+                            <BookPlaceholderIcon />
                           </div>
                         )}
                       </div>
@@ -165,8 +198,8 @@ export function HomePage() {
 
         {/* Reading Stats Card */}
         <article className="card">
-          <h2>
-            <span>📊</span> Estadísticas de Lectura
+          <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span style={{ display: "inline-flex", color: "var(--accent-gold)" }}><ChartIcon /></span> Estadísticas de Lectura
           </h2>
           {statsQuery.isLoading && <Loading />}
           {statsQuery.isError && <ErrorBox error={statsQuery.error} />}
@@ -251,8 +284,8 @@ export function HomePage() {
       {/* Recent Books & Manga Activity */}
       {(recentSeriesQuery.data?.manga?.length || recentSeriesQuery.data?.books?.length) ? (
         <article className="card">
-          <h2>
-            <span>📚</span> Actividad Reciente
+          <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span style={{ display: "inline-flex", color: "var(--accent-gold)" }}><LibraryIcon /></span> Actividad Reciente
           </h2>
           {recentSeriesQuery.isLoading && <Loading />}
           {recentSeriesQuery.isError && <ErrorBox error={recentSeriesQuery.error} />}
