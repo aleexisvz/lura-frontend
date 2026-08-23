@@ -8,6 +8,7 @@ import { getFeaturedManga, getRecentMangaUpdates, getMangaRankings } from "@/fea
 import { getContinueReading } from "@/features/reading/api";
 import { getTags } from "@/features/tags/api";
 import { Manga } from "@/types/domain";
+import { HotWeekendBanner } from "@/features/reading/components/HotWeekendBanner";
 
 // Icons
 const FireIcon = () => (
@@ -292,7 +293,10 @@ export function HomePage() {
         </section>
       ) : null}
 
-      {/* 2. CONTINUE READING SHELF (If active progress) */}
+      {/* 2. HOT WEEKEND XP BOOST BANNER */}
+      <HotWeekendBanner />
+
+      {/* 3. CONTINUE READING SHELF (If active progress) */}
       {latestContinue && (
         <section className="mp-continue-shelf">
           <div className="mp-continue-inner">

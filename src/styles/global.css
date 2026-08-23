@@ -984,6 +984,157 @@ select {
   color: var(--text-secondary);
 }
 
+/* 2.5 HOT WEEKEND BANNER */
+.mp-hot-weekend-banner {
+  background: linear-gradient(135deg, rgba(38, 19, 10, 0.95) 0%, rgba(20, 10, 10, 0.95) 100%);
+  border: 1px solid rgba(255, 120, 0, 0.38);
+  border-left: 4px solid #ff7a18;
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1.4rem;
+  box-shadow: 0 4px 20px rgba(255, 107, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.6);
+  position: relative;
+  overflow: hidden;
+}
+
+.mp-hot-weekend-banner::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  right: -10%;
+  width: 250px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(255, 107, 0, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.mp-hot-weekend-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 1;
+}
+
+.mp-hot-weekend-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.mp-hot-weekend-flame-icon {
+  font-size: 1.75rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 10px rgba(255, 120, 0, 0.6));
+  animation: mp-flame-bounce 2s ease-in-out infinite;
+}
+
+@keyframes mp-flame-bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-3px) scale(1.08); }
+}
+
+.mp-hot-weekend-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.mp-hot-weekend-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mp-hot-weekend-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #ff9d42;
+  background: rgba(255, 107, 0, 0.18);
+  border: 1px solid rgba(255, 107, 0, 0.4);
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-full);
+}
+
+.mp-hot-weekend-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.mp-hot-weekend-desc {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.mp-hot-weekend-desc strong {
+  color: #ffb066;
+}
+
+.mp-hot-weekend-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
+.mp-hot-weekend-countdown-label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #ff9d42;
+}
+
+.mp-hot-weekend-timer {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 120, 0, 0.3);
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--radius-sm);
+}
+
+.mp-timer-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 24px;
+}
+
+.mp-timer-val {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.1;
+}
+
+.mp-timer-lbl {
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+.mp-timer-sep {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: rgba(255, 150, 50, 0.7);
+  margin-top: -4px;
+}
+
+@media (max-width: 640px) {
+  .mp-hot-weekend-right {
+    align-items: flex-start;
+    width: 100%;
+  }
+}
+
 /* 3. MAIN PORTAL LAYOUT */
 .mp-portal-layout {
   display: grid;
