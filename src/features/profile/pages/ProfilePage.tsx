@@ -37,6 +37,27 @@ function clampPercent(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
+const ChartIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <line x1="12" y1="20" x2="12" y2="10" />
+    <line x1="18" y1="20" x2="18" y2="4" />
+    <line x1="6" y1="20" x2="6" y2="16" />
+  </svg>
+);
+
+const LibraryIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+  </svg>
+);
+
+const ZapIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+  </svg>
+);
+
 function resolveVolumeLabel(item: {
   volumeTitle?: string;
   volumeNumber?: number;
@@ -216,7 +237,10 @@ export function ProfilePage() {
         <div className="profile-v2-left-column">
           <article className="card profile-stats-card">
             <div className="profile-recent-header">
-              <h2>Estadisticas de lectura</h2>
+              <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ display: "inline-flex", color: "var(--accent-gold)" }}><ChartIcon /></span>
+                <span>Estadísticas de Lectura</span>
+              </h2>
               <div className="profile-recent-tabs">
                 <button
                   type="button"
@@ -323,7 +347,10 @@ export function ProfilePage() {
 
           <article className="card profile-recent-card">
             <div className="profile-recent-header">
-              <h2>Ultimas series leidas</h2>
+              <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ display: "inline-flex", color: "var(--accent-gold)" }}><LibraryIcon /></span>
+                <span>Actividad Reciente</span>
+              </h2>
               <div className="profile-recent-tabs">
                 <button
                   type="button"
@@ -408,7 +435,10 @@ export function ProfilePage() {
 
         <article className="card profile-last-read-card">
           <div className="profile-last-read-header">
-            <h2>Ultimos Capitulos Leidos</h2>
+            <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span style={{ display: "inline-flex", color: "var(--accent-gold)" }}><ZapIcon /></span>
+              <span>Continuar Leyendo</span>
+            </h2>
             <div className="profile-recent-tabs">
               <button
                 type="button"
