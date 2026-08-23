@@ -85,11 +85,13 @@ export function HomePage() {
                     ? `/books/${item.bookId}/reader`
                     : `/reader/${item.mangaId}/${item.volumeId}/${item.pageNumber}`;
                 const title = item.mangaTitle || item.title || item.mangaId || "Lectura";
+                const volumeNum = item.volumeNumber ?? 0;
                 const label = item.volumeTitle
                   ? item.volumeTitle
-                  : item.volumeNumber > 0
-                  ? `Capítulo ${item.volumeNumber}`
+                  : volumeNum > 0
+                  ? `Capítulo ${volumeNum}`
                   : `Vol. ${item.volumeId}`;
+                const progressPct = item.progressPercent ?? 0;
 
                 return (
                   <Link
@@ -98,37 +100,36 @@ export function HomePage() {
                     className="continue-reading-card"
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", minWidth: 0 }}>
-                      {item.coverUrl ? (
-                        <ProtectedImage
-                          path={item.coverUrl}
-                          alt={title}
-                          className="recent-series-thumb"
-                          style={{ width: "44px", height: "58px", borderRadius: "6px", flexShrink: 0 }}
-                        />
-                      ) : (
-                        <div
-                          style={{
-                            width: "44px",
-                            height: "58px",
-                            borderRadius: "6px",
-                            background: "var(--bg-elevated)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: "0.75rem",
-                            color: "var(--text-muted)",
-                            flexShrink: 0,
-                          }}
-                        >
-                          📖
-                        </div>
-                      )}
+                      <div style={{ width: "44px", height: "58px", borderRadius: "6px", overflow: "hidden", flexShrink: 0 }}>
+                        {item.coverUrl ? (
+                          <ProtectedImage
+                            path={item.coverUrl}
+                            alt={title}
+                            className="recent-series-thumb"
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              background: "var(--bg-elevated)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "0.75rem",
+                              color: "var(--text-muted)",
+                            }}
+                          >
+                            📖
+                          </div>
+                        )}
+                      </div>
                       <div className="continue-reading-info">
                         <span className="continue-reading-title">{title}</span>
                         <span className="continue-reading-sub">
                           {label} · Pág. {item.pageNumber}
                         </span>
-                        {item.progressPercent > 0 && (
+                        {progressPct > 0 && (
                           <div
                             style={{
                               width: "100%",
@@ -141,7 +142,7 @@ export function HomePage() {
                           >
                             <div
                               style={{
-                                width: `${item.progressPercent}%`,
+                                width: `${progressPct}%`,
                                 height: "100%",
                                 background: "var(--accent-gold)",
                               }}
