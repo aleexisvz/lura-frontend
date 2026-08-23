@@ -141,12 +141,69 @@ export function HomePage() {
 
   // Rankings
   const rankings = rankingsQuery.data ?? [];
-
   // Active Continue Reading item
   const latestContinue = continueQuery.data?.[0];
 
+  const isWeekend = useMemo(() => {
+    const day = new Date().getDay();
+    return day === 0 || day === 6;
+  }, []);
+
   return (
     <div className="mp-home">
+      {/* 0. TOP PROMOS ROW (Continue Reading 70% + Hot Weekend 30%) */}
+      {(latestContinue || isWeekend) && (
+        <div className={`mp-top-promos-row ${latestContinue && isWeekend ? "has-both" : ""}`}>
+          {latestContinue && (
+            <section className="mp-continue-shelf">
+              <div className="mp-continue-inner">
+                <div className="mp-continue-left">
+                  <div className="mp-continue-pulse" />
+                  <div className="mp-continue-label">
+                    <span className="mp-continue-tag">CONTINUAR LEYENDO</span>
+                    <strong className="mp-continue-title">
+                      {latestContinue.mangaTitle || latestContinue.title || "Tu Lectura"}
+                    </strong>
+                    <span className="mp-continue-meta">
+                      {latestContinue.volumeNumber ? `Capítulo ${latestContinue.volumeNumber}` : ""} · Pág. {latestContinue.pageNumber}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mp-continue-right">
+                  {latestContinue.progressPercent !== undefined && latestContinue.progressPercent > 0 && (
+                    <div className="mp-continue-progress-wrap">
+                      <div className="mp-continue-progress-bar">
+                        <div
+                          className="mp-continue-progress-fill"
+                          style={{ width: `${latestContinue.progressPercent}%` }}
+                        />
+                      </div>
+                      <span className="mp-continue-progress-pct">
+                        {latestContinue.progressPercent}%
+                      </span>
+                    </div>
+                  )}
+
+                  <Link
+                    to={
+                      latestContinue.contentType === "BOOK"
+                        ? `/books/${latestContinue.bookId}/reader`
+                        : `/reader/${latestContinue.mangaId}/${latestContinue.volumeId}/${latestContinue.pageNumber}`
+                    }
+                    className="mp-btn mp-btn-accent-small"
+                  >
+                    Continuar <ArrowRightIcon />
+                  </Link>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {isWeekend && <HotWeekendBanner compact={Boolean(latestContinue)} />}
+        </div>
+      )}
+
       {/* 1. HERO CAROUSEL BANNER (Manga Plus Style) */}
       {currentHero ? (
         <section
@@ -292,56 +349,6 @@ export function HomePage() {
           )}
         </section>
       ) : null}
-
-      {/* 2. HOT WEEKEND XP BOOST BANNER */}
-      <HotWeekendBanner />
-
-      {/* 3. CONTINUE READING SHELF (If active progress) */}
-      {latestContinue && (
-        <section className="mp-continue-shelf">
-          <div className="mp-continue-inner">
-            <div className="mp-continue-left">
-              <div className="mp-continue-pulse" />
-              <div className="mp-continue-label">
-                <span className="mp-continue-tag">CONTINUAR LEYENDO</span>
-                <strong className="mp-continue-title">
-                  {latestContinue.mangaTitle || latestContinue.title || "Tu Lectura"}
-                </strong>
-                <span className="mp-continue-meta">
-                  {latestContinue.volumeNumber ? `Capítulo ${latestContinue.volumeNumber}` : ""} · Pág. {latestContinue.pageNumber}
-                </span>
-              </div>
-            </div>
-
-            <div className="mp-continue-right">
-              {latestContinue.progressPercent !== undefined && latestContinue.progressPercent > 0 && (
-                <div className="mp-continue-progress-wrap">
-                  <div className="mp-continue-progress-bar">
-                    <div
-                      className="mp-continue-progress-fill"
-                      style={{ width: `${latestContinue.progressPercent}%` }}
-                    />
-                  </div>
-                  <span className="mp-continue-progress-pct">
-                    {latestContinue.progressPercent}%
-                  </span>
-                </div>
-              )}
-
-              <Link
-                to={
-                  latestContinue.contentType === "BOOK"
-                    ? `/books/${latestContinue.bookId}/reader`
-                    : `/reader/${latestContinue.mangaId}/${latestContinue.volumeId}/${latestContinue.pageNumber}`
-                }
-                className="mp-btn mp-btn-accent-small"
-              >
-                Continuar <ArrowRightIcon />
-              </Link>
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* 3. MAIN PORTAL GRID: Updates (Left) & Rankings (Right) */}
       <div className="mp-portal-layout">

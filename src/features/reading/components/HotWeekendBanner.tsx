@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-function getWeekendRemainingTime() {
+export function getWeekendRemainingTime() {
   const now = new Date();
   const day = now.getDay(); // 0 = Sunday, 6 = Saturday
 
@@ -31,7 +31,11 @@ function getWeekendRemainingTime() {
   };
 }
 
-export function HotWeekendBanner() {
+interface HotWeekendBannerProps {
+  compact?: boolean;
+}
+
+export function HotWeekendBanner({ compact = false }: HotWeekendBannerProps) {
   const [timeLeft, setTimeLeft] = useState(getWeekendRemainingTime);
 
   useEffect(() => {
@@ -50,18 +54,30 @@ export function HotWeekendBanner() {
   }
 
   return (
-    <section className="mp-hot-weekend-banner" aria-label="Evento Hot Weekend">
+    <section
+      className={`mp-hot-weekend-banner ${compact ? "compact" : ""}`}
+      aria-label="Evento Hot Weekend"
+    >
       <div className="mp-hot-weekend-inner">
         <div className="mp-hot-weekend-left">
           <div className="mp-hot-weekend-flame-icon">🔥</div>
           <div className="mp-hot-weekend-info">
             <div className="mp-hot-weekend-title-row">
               <span className="mp-hot-weekend-badge">HOT WEEKEND</span>
-              <strong className="mp-hot-weekend-title">¡Doble Experiencia Activa!</strong>
+              <strong className="mp-hot-weekend-title">
+                {compact ? "¡Doble XP Activa!" : "¡Doble Experiencia Activa!"}
+              </strong>
             </div>
-            <p className="mp-hot-weekend-desc">
-              Aprovecha el bono de <strong>doble experiencia</strong> al leer mangas y libros durante todo el fin de semana.
-            </p>
+            {!compact && (
+              <p className="mp-hot-weekend-desc">
+                Aprovecha el bono de <strong>doble experiencia</strong> al leer mangas y libros durante todo el fin de semana.
+              </p>
+            )}
+            {compact && (
+              <span className="mp-hot-weekend-compact-sub">
+                Bono <strong>x2 XP</strong> en mangas y libros
+              </span>
+            )}
           </div>
         </div>
 
