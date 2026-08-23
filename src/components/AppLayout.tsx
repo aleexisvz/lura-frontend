@@ -27,10 +27,12 @@ export function AppLayout() {
     <div className="app-shell">
       <header className="topbar">
         <div className="topbar-inner">
-          <Link to="/" className="brand">
-            Lura MVP
+          <Link to="/" className="brand" aria-label="Lura Home">
+            <span className="brand-icon">L</span>
+            <span>Lura</span>
+            <span className="brand-badge">LIBRARY</span>
           </Link>
-          <nav className="nav">
+          <nav className="nav" aria-label="Navegación principal">
             {navItems.map((item) => (
               <NavLink
                 key={item.to}
@@ -47,7 +49,7 @@ export function AppLayout() {
             )}
           </nav>
           <div className="topbar-actions">
-            <Link className="topbar-avatar-link" to="/profile" aria-label="Abrir perfil">
+            <Link className="topbar-avatar-link" to="/profile" title={meQuery.data?.username || email || "Perfil"}>
               {meQuery.data?.profileImageUrl ? (
                 <ProtectedImage
                   path={meQuery.data.profileImageUrl}
@@ -58,8 +60,8 @@ export function AppLayout() {
                 <span className="topbar-avatar-fallback">{avatarInitial}</span>
               )}
             </Link>
-            <button className="secondary-button" onClick={logout} type="button">
-              Cerrar sesion
+            <button className="secondary-button" onClick={logout} type="button" title="Cerrar sesión">
+              Salir
             </button>
           </div>
         </div>

@@ -22,27 +22,41 @@ function formatRegistrationDate(createdAt: string): string {
   return `Registro: ${value.charAt(0).toUpperCase()}${value.slice(1)}`;
 }
 
-function formatReadingTimeByTier(totalSeconds: number): string {
-  const totalMinutes = Math.max(0, Math.floor(totalSeconds / 60));
-  if (totalMinutes < 60) {
-    return `${totalMinutes} minutos`;
-  }
+function formatReadingTime(totalSeconds: number): string {
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
 
-  const totalHours = Math.floor(totalMinutes / 60);
-  const remainingMinutes = totalMinutes % 60;
-  if (totalHours < 24) {
-    return `${totalHours} horas ${remainingMinutes} minutos`;
-  }
-
-  const days = Math.floor(totalHours / 24);
-  const remainingHours = totalHours % 24;
-  return `${days} dias ${remainingHours} horas`;
+  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
 }
 
 function clampPercent(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(100, Math.round(value)));
 }
+
+const ChartIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <line x1="12" y1="20" x2="12" y2="10" />
+    <line x1="18" y1="20" x2="18" y2="4" />
+    <line x1="6" y1="20" x2="6" y2="16" />
+  </svg>
+);
+
+const LibraryIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+  </svg>
+);
+
+const ZapIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+  </svg>
+);
 
 function resolveVolumeLabel(item: {
   volumeTitle?: string;
@@ -117,30 +131,10 @@ export function ProfilePage() {
 
   const username = meQuery.data?.username || "usuario";
   const registrationLabel = formatRegistrationDate(meQuery.data?.createdAt ?? "");
-  const readingTime = formatReadingTimeByTier(statsQuery.data?.totalSeconds ?? 0);
   const readingLevel = meQuery.data?.readingLevel ?? statsQuery.data?.readingLevel ?? 1;
   const [recentTab, setRecentTab] = useState<"manga" | "books">("manga");
   const [statsTab, setStatsTab] = useState<"manga" | "books">("manga");
   const [lastReadTab, setLastReadTab] = useState<"manga" | "books">("manga");
-
-  const statsLine = useMemo(() => {
-    const pages = statsQuery.data?.totalPagesRead ?? 0;
-    if (statsTab === "books") {
-      const books = statsQuery.data?.totalBooksRead ?? 0;
-      const chapters = statsQuery.data?.totalChaptersRead ?? 0;
-      return `Libros: ${books} | Capítulos: ${chapters} | Paginas: ${pages}`;
-    }
-    const series = statsQuery.data?.totalSeriesRead ?? 0;
-    const volumes = statsQuery.data?.totalVolumesRead ?? 0;
-    return `Series: ${series} | Volumenes: ${volumes} | Paginas: ${pages}`;
-  }, [statsQuery.data, statsTab]);
-
-  const xpLine = useMemo(() => {
-    const level = statsQuery.data?.readingLevel ?? meQuery.data?.readingLevel ?? 1;
-    const xpTotal = statsQuery.data?.readingXpTotal ?? meQuery.data?.readingXpTotal ?? 0;
-    const progress = statsQuery.data?.xpProgressPercent ?? 0;
-    return `Nivel ${level} · XP ${xpTotal} (${progress}% al siguiente)`;
-  }, [meQuery.data?.readingLevel, meQuery.data?.readingXpTotal, statsQuery.data]);
 
   const lastReadVolumeItems = useMemo(
     () =>
@@ -243,7 +237,10 @@ export function ProfilePage() {
         <div className="profile-v2-left-column">
           <article className="card profile-stats-card">
             <div className="profile-recent-header">
-              <h2>Estadisticas de lectura</h2>
+              <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ display: "inline-flex", color: "var(--accent-gold)" }}><ChartIcon /></span>
+                <span>Estadísticas de Lectura</span>
+              </h2>
               <div className="profile-recent-tabs">
                 <button
                   type="button"
@@ -264,19 +261,96 @@ export function ProfilePage() {
             {statsQuery.isLoading && <Loading />}
             {statsQuery.isError && <ErrorBox error={statsQuery.error} />}
             {statsQuery.data && (
-              <div className="profile-stats-lines">
-                <p>{statsLine}</p>
-                <p>
-                  Tiempo de lectura: <strong>{readingTime}</strong>
-                </p>
-                <p>{xpLine}</p>
+              <div style={{ display: "grid", gap: "0.85rem" }}>
+                {/* Barra de Nivel y XP */}
+                <div
+                  style={{
+                    background: "var(--bg-surface)",
+                    border: "1px solid var(--border-subtle)",
+                    borderRadius: "var(--radius-md)",
+                    padding: "0.75rem 0.9rem",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      fontSize: "0.8rem",
+                      fontWeight: 600,
+                      marginBottom: "0.35rem",
+                    }}
+                  >
+                    <span style={{ color: "var(--accent-gold)" }}>
+                      Nivel {statsQuery.data.readingLevel}
+                    </span>
+                    <span style={{ color: "var(--text-muted)" }}>
+                      {statsQuery.data.xpInLevel} / {statsQuery.data.xpToNextLevel} XP
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "6px",
+                      borderRadius: "999px",
+                      background: "rgba(255,255,255,0.08)",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${statsQuery.data.xpProgressPercent}%`,
+                        height: "100%",
+                        background: "linear-gradient(90deg, #d97706, #f59e0b)",
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Grid 2x2 de Rectángulos KPI */}
+                <div className="stats-kpi-grid">
+                  <div className="stat-kpi-item">
+                    <span className="stat-kpi-label">Tiempo Total</span>
+                    <span className="stat-kpi-val highlight">
+                      {formatReadingTime(statsQuery.data.totalSeconds)}
+                    </span>
+                  </div>
+                  <div className="stat-kpi-item">
+                    <span className="stat-kpi-label">Páginas Leídas</span>
+                    <span className="stat-kpi-val">
+                      {statsQuery.data.totalPagesRead}
+                    </span>
+                  </div>
+                  <div className="stat-kpi-item">
+                    <span className="stat-kpi-label">
+                      {statsTab === "books" ? "Libros" : "Mangas"}
+                    </span>
+                    <span className="stat-kpi-val">
+                      {statsTab === "books"
+                        ? statsQuery.data.totalBooksRead ?? 0
+                        : statsQuery.data.totalMangasRead ?? statsQuery.data.totalSeriesRead ?? 0}
+                    </span>
+                  </div>
+                  <div className="stat-kpi-item">
+                    <span className="stat-kpi-label">
+                      {statsTab === "books" ? "Capítulos" : "Volúmenes"}
+                    </span>
+                    <span className="stat-kpi-val">
+                      {statsTab === "books"
+                        ? statsQuery.data.totalChaptersRead ?? 0
+                        : statsQuery.data.totalVolumesRead ?? 0}
+                    </span>
+                  </div>
+                </div>
               </div>
             )}
           </article>
 
           <article className="card profile-recent-card">
             <div className="profile-recent-header">
-              <h2>Ultimas series leidas</h2>
+              <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ display: "inline-flex", color: "var(--accent-gold)" }}><LibraryIcon /></span>
+                <span>Actividad Reciente</span>
+              </h2>
               <div className="profile-recent-tabs">
                 <button
                   type="button"
@@ -361,7 +435,10 @@ export function ProfilePage() {
 
         <article className="card profile-last-read-card">
           <div className="profile-last-read-header">
-            <h2>Ultimos Capitulos Leidos</h2>
+            <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span style={{ display: "inline-flex", color: "var(--accent-gold)" }}><ZapIcon /></span>
+              <span>Continuar Leyendo</span>
+            </h2>
             <div className="profile-recent-tabs">
               <button
                 type="button"

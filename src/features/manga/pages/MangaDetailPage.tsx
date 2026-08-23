@@ -47,6 +47,23 @@ function VolumePosterCard({
     </svg>
   );
 
+  const CheckIcon = () => (
+    <svg
+      viewBox="0 0 24 24"
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ display: "inline", verticalAlign: "middle", flexShrink: 0 }}
+    >
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+
   return (
     <Link
       to={`/reader/${mangaId}/${volume.id}/${startPage}`}
@@ -60,7 +77,7 @@ function VolumePosterCard({
       )}
 
       <span className={badgeClass}>
-        {isCompleted && <>✓ {pagesCount}</>}
+        {isCompleted && <><CheckIcon /> {pagesCount}</>}
         {isInProgress && <><BookIcon /> {pagesCount}</>}
         {!isCompleted && !isInProgress && pagesCount}
       </span>
@@ -150,6 +167,60 @@ export function MangaDetailPage() {
     return source;
   }, [volumesQuery.data, volumeOrder]);
 
+  const UserIcon = () => (
+    <svg
+      viewBox="0 0 24 24"
+      width="13"
+      height="13"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ display: "inline-block", verticalAlign: "middle", marginRight: "0.35rem" }}
+    >
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+
+  const CheckCircleIcon = () => (
+    <svg
+      viewBox="0 0 24 24"
+      width="13"
+      height="13"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ display: "inline-block", verticalAlign: "middle", marginRight: "0.35rem" }}
+    >
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  );
+
+  const RadioIcon = () => (
+    <svg
+      viewBox="0 0 24 24"
+      width="13"
+      height="13"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ display: "inline-block", verticalAlign: "middle", marginRight: "0.35rem" }}
+    >
+      <circle cx="12" cy="12" r="2" fill="currentColor" />
+      <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49" />
+    </svg>
+  );
+
   return (
     <section className="grid manga-detail-layout">
       {mangaQuery.isLoading && <Loading text="Cargando manga..." />}
@@ -175,14 +246,24 @@ export function MangaDetailPage() {
                 {mangaQuery.data.titleKanji && (
                   <span className="manga-hero-kanji">{mangaQuery.data.titleKanji}</span>
                 )}
-                <span className="manga-hero-author">{"\u{1F464}"} {mangaQuery.data.author || "Autor desconocido"}</span>
+                <span className="manga-hero-author">
+                  <UserIcon /> {mangaQuery.data.author || "Autor desconocido"}
+                </span>
                 <span className="manga-hero-type">{demoType}</span>
                 <span
                   className={`manga-hero-status ${
                     demoStatus === "FINALIZADO" ? "is-finished" : "is-ongoing"
                   }`}
                 >
-                  {"\u{2705}"} {demoStatus === "FINALIZADO" ? "FINALIZADO" : "EN EMISION"}
+                  {demoStatus === "FINALIZADO" ? (
+                    <>
+                      <CheckCircleIcon /> FINALIZADO
+                    </>
+                  ) : (
+                    <>
+                      <RadioIcon /> EN EMISION
+                    </>
+                  )}
                 </span>
               </div>
 
