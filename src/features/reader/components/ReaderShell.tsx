@@ -47,27 +47,33 @@ export function ReaderShell(props: ReaderShellProps) {
     <section className="reader-shell" aria-label="Manga reader">
       <header className="reader-topbar">
         <p className="reader-page-indicator">
-          Pagina <strong>{safeCurrent}</strong> de {maxPage}
+          Página <strong>{safeCurrent}</strong> <span style={{ opacity: 0.6 }}>/ {maxPage}</span>
         </p>
         <div className="reader-top-actions">
           <button
             type="button"
             className="reader-icon-button"
             onClick={() => setShowInfo(true)}
-            aria-label="Atajos del reader"
+            title="Atajos de teclado"
+            aria-label="Atajos de teclado"
           >
-            ?
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           </button>
           <button
             type="button"
             className="reader-icon-button"
             onClick={onToggleFullscreen}
-            aria-label={isFullscreen ? "Salir de pantalla completa" : "Entrar en pantalla completa"}
+            title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+            aria-label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
           >
-            {isFullscreen ? "x" : "[]"}
+            {isFullscreen ? (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>
+            ) : (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+            )}
           </button>
-          <button type="button" className="reader-close-button" onClick={onClose}>
-            Cerrar
+          <button type="button" className="reader-close-button" onClick={onClose} title="Cerrar visor">
+            ✕ Salir
           </button>
         </div>
       </header>
@@ -80,9 +86,10 @@ export function ReaderShell(props: ReaderShellProps) {
           className="reader-nav-button"
           onClick={onPrev}
           disabled={safeCurrent <= minPage || isBusy}
-          aria-label="Pagina anterior"
+          aria-label="Página anterior"
+          title="Página anterior"
         >
-          {"<"}
+          ‹
         </button>
         <div className="reader-progress-wrap">
           <div className="reader-progress-meta">
@@ -105,9 +112,10 @@ export function ReaderShell(props: ReaderShellProps) {
           className="reader-nav-button"
           onClick={onNext}
           disabled={safeCurrent >= maxPage || isBusy}
-          aria-label="Pagina siguiente"
+          aria-label="Página siguiente"
+          title="Página siguiente"
         >
-          {">"}
+          ›
         </button>
       </footer>
 
