@@ -32,6 +32,12 @@ function adaptManga(value: unknown): Manga {
   const source = unwrapObject(value);
   const tags = adaptTags(source);
   const categories = pickStringArray(source, ["categories"]);
+  const latestVolume =
+    source.latestVolume && typeof source.latestVolume === "object"
+      ? adaptVolume(source.latestVolume)
+      : null;
+  const status = pickString(source, ["status"]) as Manga["status"];
+
   return {
     id: pickString(source, ["id", "mangaId"]),
     title: pickString(source, ["title", "name"], "Untitled manga"),
@@ -41,6 +47,9 @@ function adaptManga(value: unknown): Manga {
     tags,
     categories: categories.length > 0 ? categories : tags.map((tag) => tag.name),
     coverUrl: pickString(source, ["coverUrl"]) || null,
+    status: status || "EN_EMISION",
+    latestVolume,
+    createdAt: pickString(source, ["createdAt"]),
   };
 }
 
@@ -77,6 +86,28 @@ export async function getMangaList(filters: MangaListFilters = {}) {
       : "";
   const response = await apiClient.request<unknown>(`/manga${query}`);
   return unwrapArray(response).map(adaptManga);
+}
+
+export async function getFeaturedManga(): Promise<Manga[]> {
+  const response = await apiClient.request<unknown>("/manga/featured");
+  return unwrapArray(response).map(adaptManga);
+}
+
+export async function getRecentMangaUpdates(): Promise<Manga[]> {
+  const response = await apiClient.request<unknown>("/manga/recent-updates");
+  return unwrapArray(response).map(adaptManga);
+}
+
+export async function getMangaRankings() {
+  const response = await apiClient.request<unknown>("/manga/rankings");
+  return unwrapArray(response).map((item) => {
+    const source = unwrapObject(item);
+    return {
+      rank: pickNumber(source, ["rank"], 1),
+      readersCount: pickNumber(source, ["readersCount", "readers", "count"], 0),
+      manga: adaptManga(source.manga),
+    };
+  });
 }
 
 export async function getMangaById(mangaId: string) {

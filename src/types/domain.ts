@@ -35,6 +35,17 @@ export type Manga = {
   tags: Tag[];
   categories: string[];
   coverUrl: string | null;
+  status?: "EN_EMISION" | "FINALIZADO";
+  latestVolume?: Volume | null;
+  createdAt?: string;
+};
+
+export type MangaWithLatest = Manga;
+
+export type MangaRankingItem = {
+  rank: number;
+  readersCount: number;
+  manga: Manga;
 };
 
 export type Volume = {
