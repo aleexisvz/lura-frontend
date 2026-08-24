@@ -521,18 +521,11 @@ export function BookReaderPage() {
 
   useEffect(() => {
     const onPageHide = () => endSessionIfNeeded(true);
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "hidden") {
-        endSessionIfNeeded(true);
-      }
-    };
 
     window.addEventListener("pagehide", onPageHide);
-    document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
       window.removeEventListener("pagehide", onPageHide);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
       endSessionIfNeeded();
       if (document.fullscreenElement) {
         void document.exitFullscreen().catch(() => {});

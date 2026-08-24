@@ -170,18 +170,10 @@ export function MangaReaderPage() {
       endSessionIfNeeded(true);
     };
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden") {
-        endSessionIfNeeded(true);
-      }
-    };
-
     window.addEventListener("pagehide", handlePageHide);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       window.removeEventListener("pagehide", handlePageHide);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [endSessionIfNeeded]);
 
