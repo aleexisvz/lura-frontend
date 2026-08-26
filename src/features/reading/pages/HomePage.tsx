@@ -79,6 +79,7 @@ function formatRelativeTime(dateStr?: string): string {
 
 export function HomePage() {
   const [activeSlide, setActiveSlide] = useState(0);
+  const [slideDirection, setSlideDirection] = useState<"next" | "prev">("next");
   const [isPaused, setIsPaused] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
@@ -119,10 +120,30 @@ export function HomePage() {
     return [];
   }, [featuredQuery.data, updatesQuery.data]);
 
+  // Handlers for directional transitions
+  const handleNextSlide = () => {
+    if (featuredList.length <= 1) return;
+    setSlideDirection("next");
+    setActiveSlide((prev) => (prev + 1) % featuredList.length);
+  };
+
+  const handlePrevSlide = () => {
+    if (featuredList.length <= 1) return;
+    setSlideDirection("prev");
+    setActiveSlide((prev) => (prev === 0 ? featuredList.length - 1 : prev - 1));
+  };
+
+  const handleDotClick = (idx: number) => {
+    if (idx === activeSlide || featuredList.length <= 1) return;
+    setSlideDirection(idx > activeSlide ? "next" : "prev");
+    setActiveSlide(idx);
+  };
+
   // Carousel Auto-rotation
   useEffect(() => {
     if (featuredList.length <= 1 || isPaused) return;
     const interval = setInterval(() => {
+      setSlideDirection("next");
       setActiveSlide((prev) => (prev + 1) % featuredList.length);
     }, 6000);
     return () => clearInterval(interval);
@@ -215,6 +236,7 @@ export function HomePage() {
           <div className="mp-hero-backdrop">
             {currentHero.coverUrl ? (
               <ProtectedImage
+                key={`hero-bg-${currentHero.id}`}
                 path={currentHero.coverUrl}
                 alt=""
                 className="mp-hero-bg-img"
@@ -224,7 +246,7 @@ export function HomePage() {
           </div>
 
           {/* Hero Content */}
-          <div className="mp-hero-container">
+          <div className={`mp-hero-container slide-${slideDirection}`} key={`hero-slide-${currentHero.id}-${slideDirection}`}>
             <div className="mp-hero-info">
               <div className="mp-hero-badge-row">
                 <span className="mp-badge mp-badge-primary">
@@ -287,7 +309,7 @@ export function HomePage() {
             </div>
 
             {/* Hero Right Cover Poster */}
-            <div className="mp-hero-cover-wrap">
+            <div className={`mp-hero-cover-wrap slide-${slideDirection}`}>
               <Link to={`/manga/${currentHero.id}`} className="mp-hero-poster-link">
                 {currentHero.coverUrl ? (
                   <ProtectedImage
@@ -315,9 +337,7 @@ export function HomePage() {
               <button
                 type="button"
                 className="mp-hero-arrow"
-                onClick={() =>
-                  setActiveSlide((prev) => (prev === 0 ? featuredList.length - 1 : prev - 1))
-                }
+                onClick={handlePrevSlide}
                 aria-label="Slide anterior"
               >
                 <ChevronLeftIcon />
@@ -329,7 +349,7 @@ export function HomePage() {
                     key={item.id}
                     type="button"
                     className={`mp-hero-dot ${idx === activeSlide ? "active" : ""}`}
-                    onClick={() => setActiveSlide(idx)}
+                    onClick={() => handleDotClick(idx)}
                     aria-label={`Ir al manga ${idx + 1}`}
                   />
                 ))}
@@ -338,9 +358,7 @@ export function HomePage() {
               <button
                 type="button"
                 className="mp-hero-arrow"
-                onClick={() =>
-                  setActiveSlide((prev) => (prev + 1) % featuredList.length)
-                }
+                onClick={handleNextSlide}
                 aria-label="Siguiente slide"
               >
                 <ChevronRightIcon />
