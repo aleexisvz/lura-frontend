@@ -1715,17 +1715,44 @@ select {
   padding: 1.15rem;
 }
 
+.mp-tags-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.85rem;
+}
+
 .mp-tags-card-title {
-  margin: 0 0 0.85rem;
+  margin: 0;
   font-size: 0.95rem;
   font-weight: 700;
   color: #ffffff;
+}
+
+.mp-tags-card-count {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  padding: 0.12rem 0.5rem;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+}
+
+.mp-tags-card-body {
+  position: relative;
 }
 
 .mp-tags-card-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
+}
+
+.mp-tags-card-grid.has-fade {
+  padding-bottom: 1.8rem;
+  max-height: 180px;
+  overflow: hidden;
 }
 
 .mp-tag-chip-link {
@@ -1743,6 +1770,56 @@ select {
   background: var(--mp-red-surface);
   border-color: var(--mp-red);
   color: #ffffff;
+}
+
+.mp-tags-card-fade {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3.5rem;
+  background: linear-gradient(
+    180deg,
+    rgba(14, 14, 17, 0) 0%,
+    rgba(14, 14, 17, 0.75) 35%,
+    var(--bg-card) 85%,
+    var(--bg-card) 100%
+  );
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 0.15rem;
+  pointer-events: none;
+}
+
+.mp-tags-show-more-link {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.4rem;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.mp-tags-show-more-link svg {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.2s ease;
+}
+
+.mp-tags-show-more-link:hover {
+  color: var(--mp-red);
+}
+
+.mp-tags-show-more-link:hover svg {
+  transform: translateX(3px);
 }
 
 .mp-empty-state {

@@ -547,17 +547,31 @@ export function HomePage() {
           {/* Quick Japanese Categories Widget */}
           {tagsQuery.data && tagsQuery.data.length > 0 && (
             <div className="mp-tags-card">
-              <h3 className="mp-tags-card-title">Explorar Géneros</h3>
-              <div className="mp-tags-card-grid">
-                {tagsQuery.data.map((tag) => (
-                  <Link
-                    key={tag.id}
-                    to={`/manga?tagIds=${tag.id}`}
-                    className="mp-tag-chip-link"
-                  >
-                    #{tag.name}
-                  </Link>
-                ))}
+              <div className="mp-tags-card-header">
+                <h3 className="mp-tags-card-title">Explorar Géneros</h3>
+                <span className="mp-tags-card-count">{tagsQuery.data.length}</span>
+              </div>
+              <div className="mp-tags-card-body">
+                <div className={`mp-tags-card-grid ${tagsQuery.data.length > 20 ? "has-fade" : ""}`}>
+                  {tagsQuery.data.slice(0, 20).map((tag) => (
+                    <Link
+                      key={tag.id}
+                      to={`/manga?tagIds=${tag.id}`}
+                      className="mp-tag-chip-link"
+                    >
+                      #{tag.name}
+                    </Link>
+                  ))}
+                </div>
+
+                {tagsQuery.data.length > 20 && (
+                  <div className="mp-tags-card-fade">
+                    <Link to="/manga" className="mp-tags-show-more-link">
+                      <span>Show more</span>
+                      <ArrowRightIcon />
+                    </Link>
+                  </div>
+                )}
               </div>
             </div>
           )}
