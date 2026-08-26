@@ -25,6 +25,29 @@ export async function getMe(): Promise<UserProfile> {
   };
 }
 
+export async function updateUsername(username: string): Promise<UserProfile> {
+  const response = await apiClient.request<unknown>("/users/me", {
+    method: "PATCH",
+    body: { username },
+  });
+  const source = unwrapObject(response);
+
+  const role = pickString(source, ["role"], "USER");
+  const profileImageUrl = pickString(source, ["profileImageUrl"], "");
+  const createdAt = pickString(source, ["createdAt"], "");
+
+  return {
+    id: pickString(source, ["id"]),
+    email: pickString(source, ["email"]),
+    username: pickString(source, ["username"]),
+    role: (role === "ADMIN" ? "ADMIN" : "USER") as Role,
+    createdAt,
+    profileImageUrl: profileImageUrl || null,
+    readingXpTotal: Math.max(0, pickNumber(source, ["readingXpTotal"], 0)),
+    readingLevel: Math.max(1, pickNumber(source, ["readingLevel"], 1)),
+  };
+}
+
 export async function uploadProfileImage(file: File) {
   const optimized = await optimizeImage(file);
   const formData = new FormData();

@@ -9,9 +9,9 @@ export const registerSchema = loginSchema.extend({
   username: z
     .string()
     .trim()
-    .min(3, "El username debe tener al menos 3 caracteres")
+    .min(2, "El username debe tener al menos 2 caracteres")
     .max(32, "El username no puede superar 32 caracteres")
-    .regex(/^[a-zA-Z0-9_]+$/, "Solo letras, numeros y guion bajo"),
+    .regex(/^[\p{L}\p{N}_-]+$/u, "Solo letras, caracteres japoneses/kanji, números, guión y guión bajo"),
   role: z.enum(["USER", "ADMIN"]).default("USER")
 });
 

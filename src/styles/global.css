@@ -3120,6 +3120,118 @@ select {
   color: #ffffff;
 }
 
+.profile-hero-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.profile-edit-name-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.profile-edit-name-trigger:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-subtle);
+}
+
+.profile-edit-name-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.profile-edit-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.profile-edit-name-input {
+  background: var(--bg-surface);
+  border: 1px solid var(--accent-gold);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 1.15rem;
+  font-weight: 600;
+  padding: 0.3rem 0.65rem;
+  min-width: 180px;
+  max-width: 280px;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.15);
+}
+
+.profile-edit-name-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.profile-edit-name-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.profile-edit-name-action-btn.confirm {
+  color: #10b981;
+}
+
+.profile-edit-name-action-btn.confirm:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: #10b981;
+}
+
+.profile-edit-name-action-btn.cancel {
+  color: var(--text-muted);
+}
+
+.profile-edit-name-action-btn.cancel:hover:not(:disabled) {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.12);
+  border-color: var(--danger);
+}
+
+.profile-edit-name-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.profile-edit-name-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #10b981;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.profile-name-error {
+  color: var(--danger);
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin: 0;
+}
+
 .profile-upload-error {
   color: var(--danger);
   font-size: 0.78rem;
