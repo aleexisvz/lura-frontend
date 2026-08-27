@@ -333,14 +333,23 @@ export function HomePage() {
 
           {/* Carousel Controls */}
           {featuredList.length > 1 && (
-            <div className="mp-hero-controls">
+            <>
               <button
                 type="button"
-                className="mp-hero-arrow"
+                className="mp-hero-arrow mp-hero-arrow-prev"
                 onClick={handlePrevSlide}
                 aria-label="Slide anterior"
               >
                 <ChevronLeftIcon />
+              </button>
+
+              <button
+                type="button"
+                className="mp-hero-arrow mp-hero-arrow-next"
+                onClick={handleNextSlide}
+                aria-label="Siguiente slide"
+              >
+                <ChevronRightIcon />
               </button>
 
               <div className="mp-hero-dots">
@@ -354,16 +363,7 @@ export function HomePage() {
                   />
                 ))}
               </div>
-
-              <button
-                type="button"
-                className="mp-hero-arrow"
-                onClick={handleNextSlide}
-                aria-label="Siguiente slide"
-              >
-                <ChevronRightIcon />
-              </button>
-            </div>
+            </>
           )}
         </section>
       ) : null}
