@@ -681,7 +681,7 @@ select {
   grid-template-columns: 1fr 240px;
   align-items: center;
   gap: 2.5rem;
-  padding: 2.5rem 3.5rem 3.75rem;
+  padding: 2.25rem 4rem;
   height: 100%;
   box-sizing: border-box;
 }
@@ -697,7 +697,7 @@ select {
 @media (max-width: 900px) {
   .mp-hero-container {
     grid-template-columns: 1fr;
-    padding: 2rem 1.5rem 3.5rem;
+    padding: 1.75rem 1.25rem 2.75rem;
     height: auto;
   }
 }
@@ -705,8 +705,8 @@ select {
 .mp-hero-info {
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
-  max-width: 680px;
+  gap: 0.55rem;
+  max-width: 700px;
   min-width: 0;
 }
 
@@ -749,10 +749,10 @@ select {
 
 .mp-hero-kanji {
   font-family: "Space Grotesk", sans-serif;
-  font-size: 1.1rem;
-  color: rgba(255, 255, 255, 0.35);
-  letter-spacing: 0.12em;
-  font-weight: 700;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.08em;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -761,23 +761,22 @@ select {
 
 .mp-hero-title {
   font-family: var(--font-display);
-  font-size: 2.4rem;
+  font-size: 2.2rem;
   font-weight: 800;
-  line-height: 1.15;
+  line-height: 1.2;
   color: #ffffff;
   letter-spacing: -0.03em;
   text-shadow: 0 2px 20px rgba(0, 0, 0, 0.8);
   margin: 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  white-space: nowrap;
   overflow: hidden;
-  word-break: break-word;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 @media (max-width: 640px) {
   .mp-hero-title {
-    font-size: 1.75rem;
+    font-size: 1.6rem;
   }
 }
 
@@ -811,12 +810,12 @@ select {
 }
 
 .mp-hero-desc {
-  margin: 0.15rem 0 0.4rem;
-  font-size: 0.92rem;
-  line-height: 1.55;
+  margin: 0.1rem 0 0.35rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
   color: var(--text-secondary);
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -960,51 +959,74 @@ select {
 }
 
 /* Hero Carousel Controls */
-.mp-hero-controls {
-  position: absolute;
-  bottom: 16px;
-  left: 3.5rem;
-  right: 3.5rem;
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-@media (max-width: 900px) {
-  .mp-hero-controls {
-    left: 1.5rem;
-    right: 1.5rem;
-  }
-}
-
+button.mp-hero-arrow,
 .mp-hero-arrow {
-  width: 34px;
-  height: 34px;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   color: #ffffff;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
+.mp-hero-arrow-prev {
+  left: 1rem;
+}
+
+.mp-hero-arrow-next {
+  right: 1rem;
+}
+
+button.mp-hero-arrow:hover:not(:disabled),
 .mp-hero-arrow:hover {
   background: var(--mp-red);
   border-color: var(--mp-red);
   color: #ffffff;
-  transform: scale(1.1);
+  transform: translateY(calc(-50% - 4px));
+  box-shadow: 0 6px 20px var(--mp-red-glow);
+}
+
+button.mp-hero-arrow:active:not(:disabled),
+.mp-hero-arrow:active {
+  transform: translateY(calc(-50% - 1px));
 }
 
 .mp-hero-dots {
+  position: absolute;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
   display: flex;
   align-items: center;
   gap: 0.45rem;
 }
 
+@media (max-width: 900px) {
+  button.mp-hero-arrow,
+  .mp-hero-arrow {
+    display: none;
+  }
+
+  .mp-hero-dots {
+    bottom: 1rem;
+  }
+}
+
+button.mp-hero-dot,
 .mp-hero-dot {
   width: 8px;
   height: 8px;
@@ -1013,13 +1035,22 @@ select {
   border: none;
   padding: 0;
   cursor: pointer;
+  transform: none;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+button.mp-hero-dot:hover:not(:disabled),
+.mp-hero-dot:hover {
+  background: rgba(255, 255, 255, 0.6);
+  transform: scale(1.2);
+}
+
+button.mp-hero-dot.active,
 .mp-hero-dot.active {
   width: 24px;
   background: var(--mp-red);
   box-shadow: 0 0 10px var(--mp-red-glow);
+  transform: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
