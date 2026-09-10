@@ -242,16 +242,19 @@ export function ProfilePage() {
   const statsQuery = useQuery({
     queryKey: ["reading-stats"],
     queryFn: getReadingStats,
+    refetchOnMount: "always",
   });
 
   const recentSeriesQuery = useQuery({
     queryKey: ["recent-series"],
     queryFn: () => getRecentSeries(12),
+    refetchOnMount: "always",
   });
 
   const continueReadingQuery = useQuery({
     queryKey: ["continue-reading"],
     queryFn: getContinueReading,
+    refetchOnMount: "always",
   });
 
   const username = meQuery.data?.username || "usuario";

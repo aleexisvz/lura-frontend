@@ -1,438 +1,616 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { ErrorBox } from "@/components/ErrorBox";
-import { Loading } from "@/components/Loading";
-import {
-  getBookById,
-  getBookFileBlob,
-  getBookProgress,
-  getBookReadManifest,
-  getBookReaderPreferences,
-  saveBookProgress,
-  updateBookReaderPreferences,
-} from "@/features/books/api";
-import { useAuth } from "@/features/auth/AuthContext";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { getBookById, getBookFileBlob, saveBookProgress } from "@/features/books/api";
 import {
   endReadingSession,
   endReadingSessionKeepalive,
   startBookReadingSession,
 } from "@/features/reading/api";
-import type {
-  BookReaderMode,
-  BookReaderPreferences,
-  BookReadManifest,
-} from "@/types/domain";
-import { useReaderHotkeys } from "@/features/reader/hooks/useReaderHotkeys";
+import { BookReaderWindowHeader } from "../components/BookReaderWindowHeader";
+import { BookPageSpread } from "../components/BookPageSpread";
+import {
+  BookSettingsPanel,
+  BookTheme,
+  FONT_OPTIONS,
+} from "../components/BookSettingsPanel";
+import { BookBottomDock } from "../components/BookBottomDock";
+import {
+  BookBookmarksModal,
+  BookBookmark,
+} from "../components/BookBookmarksModal";
+import { BookNotesModal, BookNote } from "../components/BookNotesModal";
+import { BookTocDrawer, TocChapterItem } from "../components/BookTocDrawer";
 
-function themeColors(theme: string) {
+const PREFS_STORAGE_KEY = "lura_book_reader_preferences";
+const epubBufferCache = new Map<string, ArrayBuffer>();
+
+function themeColors(theme: BookTheme) {
   if (theme === "dark") {
     return {
-      background: "#111827",
-      color: "#f8fafc",
-      stage: "#08111f",
-      chrome: "#0c1524",
+      pageBg: "#1e2128",
+      textColor: "#e2e8f0",
+      stageBg: "#0d0f13",
+      chromeBg: "#14171d",
+      coverEdge: "#0a0b0e",
     };
   }
-
-  if (theme === "sepia") {
+  if (theme === "light") {
     return {
-      background: "#f6eddc",
-      color: "#3f2f1f",
-      stage: "#1a1713",
-      chrome: "#0f1827",
+      pageBg: "#ffffff",
+      textColor: "#1a202c",
+      stageBg: "#22242a",
+      chromeBg: "#edf0f4",
+      coverEdge: "#2c3444",
     };
   }
-
   return {
-    background: "#ffffff",
-    color: "#172033",
-    stage: "#07111f",
-    chrome: "#0d1626",
+    pageBg: "#f7f4ec",
+    textColor: "#2b2219",
+    stageBg: "#1c1d22",
+    chromeBg: "#e6e8ec",
+    coverEdge: "#3d3023",
   };
 }
 
-function normalizeSectionHref(href: string) {
-  return href.split("#")[0] ?? href;
-}
+function applyEpubTheme(
+  rendition: any,
+  theme: BookTheme,
+  fontFamily: string,
+  fontSize: number
+) {
+  if (!rendition) return;
 
-function normalizeComparableHref(href: string) {
-  return normalizeSectionHref(href)
-    .replace(/^\/+/, "")
-    .replace(/\\/g, "/")
-    .trim();
-}
+  const palette = themeColors(theme);
+  rendition.themes.default({
+    body: {
+      background: `${palette.pageBg} !important`,
+      color: `${palette.textColor} !important`,
+      "font-family": `${fontFamily} !important`,
+      "font-size": `${fontSize}px !important`,
+      "line-height": "1.7 !important",
+      "text-align": "justify !important",
+      padding: "0 !important",
+      margin: "0 !important",
+      "box-sizing": "border-box !important",
+    },
+    p: {
+      "margin-block": "0 0 1.1em !important",
+      "text-indent": "1.25em !important",
+      "word-break": "break-word !important",
+      hyphens: "auto !important",
+      "-webkit-hyphens": "auto !important",
+    },
+    "p:first-of-type": {
+      "text-indent": "0 !important",
+    },
+    h1: {
+      "font-family": `${fontFamily} !important`,
+      color: `${palette.textColor} !important`,
+      "line-height": "1.25 !important",
+      "margin-block": "1.2em 0.8em !important",
+      "text-align": "center !important",
+      "page-break-before": "always !important",
+      "break-before": "page !important",
+    },
+    h2: {
+      "font-family": `${fontFamily} !important`,
+      color: `${palette.textColor} !important`,
+      "line-height": "1.3 !important",
+      "margin-block": "1.2em 0.8em !important",
+      "text-align": "center !important",
+    },
+    h3: {
+      "font-family": `${fontFamily} !important`,
+      color: `${palette.textColor} !important`,
+      "line-height": "1.35 !important",
+      "margin-block": "1em 0.6em !important",
+    },
+    img: {
+      "max-width": "100% !important",
+      height: "auto !important",
+    },
+  });
 
-function hrefMatches(left: string, right: string) {
-  const normalizedLeft = normalizeComparableHref(left);
-  const normalizedRight = normalizeComparableHref(right);
-
-  return (
-    normalizedLeft === normalizedRight ||
-    normalizedLeft.endsWith(`/${normalizedRight}`) ||
-    normalizedRight.endsWith(`/${normalizedLeft}`)
-  );
-}
-
-function findSectionLabel(manifest: BookReadManifest, href: string) {
-  const tocMatch = manifest.toc.find((item) => hrefMatches(item.href, href));
-  if (tocMatch) {
-    return tocMatch.label;
-  }
-
-  return (
-    manifest.spine.find((item) => hrefMatches(item.href, href))?.label ||
-    "Lectura"
-  );
-}
-
-function findManifestSpineItem(manifest: BookReadManifest, href: string) {
-  return manifest.spine.find((item) => hrefMatches(item.href, href)) ?? null;
-}
-
-function resolveReaderHref(book: any, manifestHref: string) {
-  const spineItems = Array.isArray(book?.spine?.spineItems) ? book.spine.spineItems : [];
-  const matchedItem = spineItems.find((item: { href?: string }) =>
-    typeof item?.href === "string" ? hrefMatches(item.href, manifestHref) : false
-  );
-
-  return matchedItem?.href ?? manifestHref;
+  try {
+    rendition.themes?.fontSize?.(`${fontSize}px`);
+    rendition.themes?.font?.(fontFamily);
+    rendition.themes?.override?.("color", `${palette.textColor} !important`);
+    rendition.themes?.override?.("background", `${palette.pageBg} !important`);
+  } catch {}
 }
 
 export function BookReaderPage() {
   const { bookId = "" } = useParams();
   const navigate = useNavigate();
-  const { initialized } = useAuth();
-  const viewportRef = useRef<HTMLDivElement | null>(null);
   const shellRef = useRef<HTMLDivElement | null>(null);
-  const bookRef = useRef<any>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const bookEngineRef = useRef<any>(null);
   const renditionRef = useRef<any>(null);
-  const currentLocatorRef = useRef<string>("");
   const locationsReadyRef = useRef(false);
-  const hasHydratedPreferencesRef = useRef(false);
-  const saveProgressTimeoutRef = useRef<number | null>(null);
-  const preferenceSaveTimeoutRef = useRef<number | null>(null);
-  const sessionIdRef = useRef<string | null>(null);
-  const sessionEndRequestedRef = useRef(false);
-  const saveProgressMutateRef = useRef<
-    ((payload: {
-      spineIndex: number;
-      sectionHref: string;
-      locator: string;
-      progressPercent: number;
-    }) => void) | null
-  >(null);
-  const savePreferencesMutateRef = useRef<((preferences: BookReaderPreferences) => void) | null>(
-    null
-  );
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [preferences, setPreferences] = useState<BookReaderPreferences | null>(null);
-  const [preferencesReady, setPreferencesReady] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [tocOpen, setTocOpen] = useState(false);
-  const [currentSectionHref, setCurrentSectionHref] = useState("");
-  const [currentLabel, setCurrentLabel] = useState("Preparando lectura");
-  const [progressPercent, setProgressPercent] = useState(0);
-  const [pageLabel, setPageLabel] = useState("1 / 1");
-  const [isReaderBooting, setIsReaderBooting] = useState(true);
-  const [readerInitError, setReaderInitError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setSessionId(null);
-    setPreferences(null);
-    setPreferencesReady(false);
-    setCurrentSectionHref("");
-    setCurrentLabel("Preparando lectura");
-    setProgressPercent(0);
-    setPageLabel("1 / 1");
-    setIsReaderBooting(true);
-    setReaderInitError(null);
-    hasHydratedPreferencesRef.current = false;
-    currentLocatorRef.current = "";
-    locationsReadyRef.current = false;
-  }, [bookId]);
-
+  // --- QUERY BOOK DATA ---
   const bookQuery = useQuery({
     queryKey: ["book-detail", bookId],
     queryFn: () => getBookById(bookId),
     enabled: Boolean(bookId),
   });
 
-  const manifestQuery = useQuery({
-    queryKey: ["book-read-manifest", bookId],
-    queryFn: () => getBookReadManifest(bookId),
-    enabled: Boolean(bookId && initialized),
-  });
-
-  const progressQuery = useQuery({
-    queryKey: ["book-progress", bookId],
-    queryFn: () => getBookProgress(bookId),
-    enabled: Boolean(bookId && initialized),
-  });
-
-  const preferencesQuery = useQuery({
-    queryKey: ["book-reader-preferences"],
-    queryFn: getBookReaderPreferences,
-    enabled: initialized,
-  });
-
-  const epubBlobQuery = useQuery({
-    queryKey: ["book-epub", bookId],
-    queryFn: () => getBookFileBlob(bookId),
-    enabled: Boolean(bookId && manifestQuery.isSuccess),
-  });
-
-  const startSessionMutation = useMutation({
-    mutationFn: startBookReadingSession,
-    onSuccess: (nextSessionId) => {
-      sessionEndRequestedRef.current = false;
-      setSessionId(nextSessionId);
-    },
-  });
-
-  const saveProgressMutation = useMutation({
-    mutationFn: (payload: {
-      spineIndex: number;
-      sectionHref: string;
-      locator: string;
-      progressPercent: number;
-    }) => saveBookProgress(bookId, payload),
-  });
-
-  const savePreferencesMutation = useMutation({
-    mutationFn: updateBookReaderPreferences,
-  });
-
-  useEffect(() => {
-    saveProgressMutateRef.current = saveProgressMutation.mutate;
-  }, [saveProgressMutation.mutate]);
-
-  useEffect(() => {
-    savePreferencesMutateRef.current = savePreferencesMutation.mutate;
-  }, [savePreferencesMutation.mutate]);
-
-  useEffect(() => {
-    sessionIdRef.current = sessionId;
-  }, [sessionId]);
-
-  useEffect(() => {
-    if (preferences || !manifestQuery.data || !preferencesQuery.data) {
-      return;
+  const book = useMemo(() => {
+    if (bookQuery.data) {
+      return {
+        id: bookQuery.data.id,
+        title: bookQuery.data.title,
+        author: bookQuery.data.author,
+        coverUrl: bookQuery.data.coverUrl || null,
+        epubUrl: bookQuery.data.epubUrl || null,
+        hasEpub: bookQuery.data.hasEpub,
+      };
     }
-
-    setPreferences(preferencesQuery.data ?? manifestQuery.data.defaultPreferences);
-    setPreferencesReady(true);
-  }, [manifestQuery.data, preferences, preferencesQuery.data]);
-
-  useEffect(() => {
-    if (!preferencesReady || !preferences) {
-      return;
-    }
-
-    if (!hasHydratedPreferencesRef.current) {
-      hasHydratedPreferencesRef.current = true;
-      return;
-    }
-
-    if (preferenceSaveTimeoutRef.current !== null) {
-      window.clearTimeout(preferenceSaveTimeoutRef.current);
-    }
-
-    preferenceSaveTimeoutRef.current = window.setTimeout(() => {
-      savePreferencesMutateRef.current?.(preferences);
-    }, 300);
-
-    return () => {
-      if (preferenceSaveTimeoutRef.current !== null) {
-        window.clearTimeout(preferenceSaveTimeoutRef.current);
-      }
+    return {
+      id: bookId || "",
+      title: "",
+      author: "",
+      coverUrl: null,
+      epubUrl: null,
+      hasEpub: false,
     };
-  }, [preferences, preferencesReady]);
+  }, [bookQuery.data, bookId]);
 
-  const hasStartedRef = useRef<string | null>(null);
+  // Ensure local progress metadata contains real book title and cover
+  useEffect(() => {
+    if (bookId && bookQuery.data?.title) {
+      try {
+        const raw = localStorage.getItem(`lura_book_progress_${bookId}`);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          let changed = false;
+          if (!parsed.title || parsed.title === "Book") {
+            parsed.title = bookQuery.data.title;
+            changed = true;
+          }
+          if (!parsed.coverUrl && bookQuery.data.coverUrl) {
+            parsed.coverUrl = bookQuery.data.coverUrl;
+            changed = true;
+          }
+          if (changed) {
+            localStorage.setItem(`lura_book_progress_${bookId}`, JSON.stringify(parsed));
+          }
+        }
+      } catch {}
+    }
+  }, [bookId, bookQuery.data]);
+
+  // --- PERSISTED READING POSITION (Starts at 1, NOT 68) ---
+  const progressStorageKey = `lura_book_page_${bookId || "demo"}`;
+  const cfiStorageKey = `lura_book_cfi_${bookId || "demo"}`;
+
+  const [currentPage, setCurrentPage] = useState<number>(() => {
+    try {
+      const savedCfi = localStorage.getItem(cfiStorageKey);
+      const saved = localStorage.getItem(progressStorageKey);
+      if (savedCfi && saved) {
+        const parsed = Number(saved);
+        if (!isNaN(parsed) && parsed >= 1) {
+          return parsed;
+        }
+      }
+      const rawFull = localStorage.getItem(`lura_book_progress_${bookId || "demo"}`);
+      if (rawFull) {
+        const parsedObj = JSON.parse(rawFull);
+        if (parsedObj.currentPage && parsedObj.currentPage >= 1) {
+          return parsedObj.currentPage;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return 1;
+  });
+
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [progressPercent, setProgressPercent] = useState<number>(0);
+  const [currentSectionHref, setCurrentSectionHref] = useState<string>("");
+  const [chapters, setChapters] = useState<TocChapterItem[]>([]);
+  const [isEpubMode, setIsEpubMode] = useState<boolean>(false);
+  const [isReaderBooting, setIsReaderBooting] = useState<boolean>(true);
+  const [reloadKey, setReloadKey] = useState<number>(0);
+
+  const handleRetry = useCallback(() => {
+    if (bookId) {
+      epubBufferCache.delete(bookId);
+    }
+    setReloadKey((k) => k + 1);
+  }, [bookId]);
+
+  // --- READER PREFERENCES ---
+  const [fontSize, setFontSize] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(PREFS_STORAGE_KEY);
+      if (saved) {
+        const p = JSON.parse(saved);
+        if (typeof p.fontSize === "number") return p.fontSize;
+      }
+    } catch {
+      // ignore
+    }
+    return 16;
+  });
+
+  const [fontFamily, setFontFamily] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem(PREFS_STORAGE_KEY);
+      if (saved) {
+        const p = JSON.parse(saved);
+        if (typeof p.fontFamily === "string") return p.fontFamily;
+      }
+    } catch {
+      // ignore
+    }
+    return FONT_OPTIONS[0].cssFamily; // "Modern Serif"
+  });
+
+  const [theme, setTheme] = useState<BookTheme>(() => {
+    try {
+      const saved = localStorage.getItem(PREFS_STORAGE_KEY);
+      if (saved) {
+        const p = JSON.parse(saved);
+        if (p.theme === "light" || p.theme === "sepia" || p.theme === "dark") {
+          return p.theme;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return "sepia";
+  });
+
+  const [brightnessEnabled, setBrightnessEnabled] = useState(true);
 
   useEffect(() => {
-    if (!bookId || startSessionMutation.isPending || sessionId) {
-      return;
+    try {
+      localStorage.setItem(
+        PREFS_STORAGE_KEY,
+        JSON.stringify({ fontSize, fontFamily, theme, brightnessEnabled })
+      );
+    } catch {
+      // ignore
     }
-    
-    if (hasStartedRef.current === bookId) {
-      return;
+  }, [fontSize, fontFamily, theme, brightnessEnabled]);
+
+  // Apply preferences dynamically to EPUB rendition
+  useEffect(() => {
+    if (renditionRef.current) {
+      applyEpubTheme(renditionRef.current, theme, fontFamily, fontSize);
     }
+  }, [theme, fontFamily, fontSize]);
+
+  // --- BOOKMARKS & NOTES (NO FAKE DATA, PURGE LEGACY MOCK) ---
+  const bookmarksStorageKey = `lura_book_bookmarks_${book.id}`;
+  const [bookmarks, setBookmarks] = useState<BookBookmark[]>(() => {
+    try {
+      const saved = localStorage.getItem(bookmarksStorageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(
+            (b) =>
+              b &&
+              typeof b === "object" &&
+              b.id !== "bm-1" &&
+              !String(b.id || "").startsWith("bm-1") &&
+              !String(b.label || "").includes("El juramento")
+          );
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(bookmarksStorageKey, JSON.stringify(bookmarks));
+    } catch {
+      // ignore
+    }
+  }, [bookmarks, bookmarksStorageKey]);
+
+  const notesStorageKey = `lura_book_notes_${book.id}`;
+  const [notes, setNotes] = useState<BookNote[]>(() => {
+    try {
+      const saved = localStorage.getItem(notesStorageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(
+            (n) =>
+              n &&
+              typeof n === "object" &&
+              n.id !== "note-1" &&
+              !String(n.id || "").startsWith("note-1") &&
+              !String(n.text || "").includes("ley de la corte")
+          );
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(notesStorageKey, JSON.stringify(notes));
+    } catch {
+      // ignore
+    }
+  }, [notes, notesStorageKey]);
+
+  // --- OVERLAYS STATE ---
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isTocOpen, setIsTocOpen] = useState(false);
+  const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // --- SESSION TRACKING ---
+  const hasStartedRef = useRef<string | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
+  const sessionEndRequestedRef = useRef(false);
+  const startPromiseRef = useRef<Promise<string | null> | null>(null);
+
+  useEffect(() => {
+    if (!bookId) return;
+    if (hasStartedRef.current === bookId) return;
     hasStartedRef.current = bookId;
 
-    startSessionMutation.mutate(bookId);
-  }, [bookId, sessionId, startSessionMutation]);
+    const promise = startBookReadingSession(bookId)
+      .then((id) => {
+        if (id) {
+          sessionIdRef.current = id;
+          return id;
+        }
+        return null;
+      })
+      .catch(() => null);
 
-  const applyPreferencesToRendition = useCallback((nextPreferences: BookReaderPreferences) => {
-    const rendition = renditionRef.current;
-    if (!rendition) {
-      return;
+    startPromiseRef.current = promise;
+  }, [bookId]);
+
+  const endSessionIfNeeded = useCallback((preferKeepalive = false) => {
+    if (sessionEndRequestedRef.current) return;
+    sessionEndRequestedRef.current = true;
+
+    const terminate = (id: string) => {
+      if (preferKeepalive) {
+        endReadingSessionKeepalive(id);
+      } else {
+        void endReadingSession(id).catch(() => {});
+      }
+    };
+
+    const activeSessionId = sessionIdRef.current;
+    if (activeSessionId) {
+      terminate(activeSessionId);
+    } else if (startPromiseRef.current) {
+      startPromiseRef.current.then((id) => {
+        if (id) terminate(id);
+      });
     }
-
-    const palette = themeColors(nextPreferences.theme);
-    rendition.themes.default({
-      body: {
-        background: palette.background,
-        color: palette.color,
-        "font-family": nextPreferences.fontFamily,
-        "font-size": `${nextPreferences.fontSize}px`,
-        "line-height": `${nextPreferences.lineHeight}`,
-        "text-align": nextPreferences.textAlign,
-        margin: "0 auto",
-        "max-width": `${nextPreferences.pageWidth}px`,
-        padding: "24px 28px 36px",
-      },
-      p: {
-        "margin-block": "0 0 1em",
-      },
-      img: {
-        "max-width": "100%",
-        height: "auto",
-      },
-      h1: {
-        "line-height": "1.2",
-      },
-      h2: {
-        "line-height": "1.24",
-      },
-      h3: {
-        "line-height": "1.28",
-      },
-    });
   }, []);
 
   useEffect(() => {
-    if (!preferences) {
-      return;
-    }
+    const handlePageHide = () => {
+      endSessionIfNeeded(true);
+    };
 
-    applyPreferencesToRendition(preferences);
-  }, [applyPreferencesToRendition, preferences]);
+    window.addEventListener("pagehide", handlePageHide);
+    window.addEventListener("beforeunload", handlePageHide);
 
+    return () => {
+      window.removeEventListener("pagehide", handlePageHide);
+      window.removeEventListener("beforeunload", handlePageHide);
+      endSessionIfNeeded(false);
+    };
+  }, [endSessionIfNeeded]);
+
+  // --- RESIZE HANDLER FOR EPUB ---
+  useEffect(() => {
+    let resizeTimeout: any = null;
+    const handleResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        if (renditionRef.current && viewportRef.current) {
+          try {
+            const rect = viewportRef.current.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+              renditionRef.current.resize(rect.width, rect.height);
+            }
+          } catch {}
+        }
+      }, 150);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => {
+      clearTimeout(resizeTimeout);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  // --- LOAD REAL EPUB ENGINE ---
   useEffect(() => {
     let cancelled = false;
-    const readerMode = preferences?.mode;
 
-    async function loadBook() {
-      if (
-        !manifestQuery.data ||
-        !epubBlobQuery.data ||
-        !viewportRef.current ||
-        !preferences ||
-        !readerMode
-      ) {
-        return;
-      }
-
+    async function initEpub() {
+      if (!viewportRef.current) return;
       setIsReaderBooting(true);
-      setCurrentLabel("Preparando lectura");
-      setPageLabel("1 / 1");
-      setReaderInitError(null);
 
       try {
+        let arrayBuffer: ArrayBuffer | null = bookId ? (epubBufferCache.get(bookId) || null) : null;
+
+        // 1. Prioritize backend streaming (guaranteed CORS + authentication + memory cached)
+        if (!arrayBuffer && bookId) {
+          try {
+            const blob = await getBookFileBlob(bookId);
+            arrayBuffer = await blob.arrayBuffer();
+            epubBufferCache.set(bookId, arrayBuffer);
+          } catch (err) {
+            console.warn("Backend EPUB streaming error:", err);
+          }
+        }
+
+        // 2. Direct CDN fallback if backend was unavailable
+        if (!arrayBuffer && bookQuery.data?.epubUrl) {
+          try {
+            const res = await fetch(bookQuery.data.epubUrl);
+            if (res.ok) {
+              arrayBuffer = await res.arrayBuffer();
+              if (bookId) epubBufferCache.set(bookId, arrayBuffer);
+            }
+          } catch (err) {
+            console.warn("Direct CDN fetch error:", err);
+          }
+        }
+
+        if (!arrayBuffer || cancelled || !viewportRef.current) {
+          if (!cancelled) {
+            setIsEpubMode(false);
+            setIsReaderBooting(false);
+          }
+          return;
+        }
+
         const epubModule = await import("epubjs");
         const ePubFactory =
-          typeof (epubModule as { default?: unknown }).default === "function"
-            ? (epubModule as { default: (input: unknown) => any }).default
-            : typeof (epubModule as { default?: { default?: unknown } }).default?.default === "function"
-              ? (epubModule as { default: { default: (input: unknown) => any } }).default.default
-              : null;
+          typeof (epubModule as any).default === "function"
+            ? (epubModule as any).default
+            : (epubModule as any).default?.default || (epubModule as any);
 
-        if (!ePubFactory) {
-          throw new Error("No fue posible inicializar el motor EPUB.");
-        }
-
-        if (cancelled || !viewportRef.current) {
-          return;
-        }
+        if (!ePubFactory || cancelled || !viewportRef.current) return;
 
         viewportRef.current.innerHTML = "";
-        const arrayBuffer = await epubBlobQuery.data.arrayBuffer();
-        if (cancelled || !viewportRef.current) {
-          return;
-        }
+        const bookEngine = ePubFactory(arrayBuffer);
+        bookEngineRef.current = bookEngine;
 
-        const book = ePubFactory(arrayBuffer);
-        const rendition = book.renderTo(viewportRef.current, {
+        // Render paginated spread: two entire facing pages side-by-side with 60px center gap
+        const rendition = bookEngine.renderTo(viewportRef.current, {
           width: "100%",
           height: "100%",
-          flow: readerMode === "SCROLL" ? "scrolled-doc" : "paginated",
-          manager: readerMode === "SCROLL" ? "continuous" : "default",
-          spread: "none",
+          flow: "paginated",
+          spread: "always",
+          minSpreadWidth: 700,
+          gap: 60,
+        });
+        renditionRef.current = rendition;
+
+        applyEpubTheme(rendition, theme, fontFamily, fontSize);
+
+        rendition.on("keyup", (e: any) => {
+          if (e.key === "ArrowLeft" || e.key === "PageUp") {
+            handlePrevPage();
+          } else if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") {
+            handleNextPage();
+          }
         });
 
-        bookRef.current = book;
-        renditionRef.current = rendition;
-        locationsReadyRef.current = false;
-
         rendition.on("relocated", (location: any) => {
-          const href = normalizeSectionHref(location?.start?.href ?? "");
-          const cfi = typeof location?.start?.cfi === "string" ? location.start.cfi : "";
-          const manifestSpineItem = findManifestSpineItem(manifestQuery.data, href);
-          const spineIndex = manifestSpineItem?.order ?? -1;
-          const displayedPage = Number(location?.start?.displayed?.page ?? 1);
-          const displayedTotal = Number(location?.start?.displayed?.total ?? 1);
-          const label = findSectionLabel(manifestQuery.data, href);
+          if (cancelled) return;
+          const cfi = location?.start?.cfi || "";
+          const displayedPage = Number(location?.start?.displayed?.page || 1);
+          const displayedTotal = Number(location?.start?.displayed?.total || 1);
+          const href = location?.start?.href || "";
 
-          currentLocatorRef.current = cfi;
-          setCurrentSectionHref(manifestSpineItem?.href ?? href);
-          setCurrentLabel(label);
-          setPageLabel(`${displayedPage} / ${displayedTotal}`);
+          setCurrentSectionHref(href);
 
-          let nextProgress = 0;
+          let pct = 0;
+          let calculatedPage = displayedPage;
+          let calculatedTotal = displayedTotal;
 
-          if (cfi && locationsReadyRef.current) {
+          if (locationsReadyRef.current && cfi && bookEngine.locations) {
             try {
-              nextProgress = Math.round(book.locations.percentageFromCfi(cfi) * 100);
+              pct = Math.round(bookEngine.locations.percentageFromCfi(cfi) * 100);
+              const loc = bookEngine.locations.locationFromCfi(cfi);
+              if (typeof loc === "number" && loc >= 0) {
+                calculatedPage = loc + 1;
+              }
+              if (typeof bookEngine.locations.total === "number" && bookEngine.locations.total > 0) {
+                calculatedTotal = bookEngine.locations.total;
+              }
             } catch {
-              nextProgress = 0;
+              pct = displayedTotal > 1 ? Math.round((displayedPage / displayedTotal) * 100) : 0;
             }
-          } else if (spineIndex >= 0 && manifestQuery.data.spine.length > 1) {
-            nextProgress = Math.round((spineIndex / (manifestQuery.data.spine.length - 1)) * 100);
+          } else if (displayedTotal > 1) {
+            pct = Math.round((displayedPage / displayedTotal) * 100);
           }
 
-          setProgressPercent(Number.isFinite(nextProgress) ? nextProgress : 0);
-
-          if (spineIndex < 0 || !cfi) {
-            return;
+          setCurrentPage(calculatedPage);
+          if (calculatedTotal > 1) {
+            setTotalPages(calculatedTotal);
           }
+          const finalPct = Math.min(100, Math.max(0, pct));
+          setProgressPercent(finalPct);
 
-          if (saveProgressTimeoutRef.current !== null) {
-            window.clearTimeout(saveProgressTimeoutRef.current);
-          }
+          try {
+            if (cfi) localStorage.setItem(cfiStorageKey, cfi);
+            localStorage.setItem(progressStorageKey, String(calculatedPage));
+          } catch {}
 
-          saveProgressTimeoutRef.current = window.setTimeout(() => {
-            saveProgressMutateRef.current?.({
-              spineIndex,
-              sectionHref: manifestSpineItem?.href ?? href,
+          if (bookId) {
+            const matchedChapter = chapters.find((c) => href && c.href && href.includes(c.href));
+            const isFinished = location?.atEnd === true || finalPct >= 100 || (calculatedTotal > 1 && calculatedPage >= calculatedTotal);
+            saveBookProgress(bookId, {
+              spineIndex: 0,
+              sectionHref: href,
               locator: cfi,
-              progressPercent: Number.isFinite(nextProgress) ? nextProgress : 0,
-            });
-          }, 250);
+              progressPercent: finalPct,
+              currentPage: calculatedPage,
+              totalPages: calculatedTotal,
+              title: book.title || bookQuery.data?.title,
+              coverUrl: book.coverUrl || bookQuery.data?.coverUrl,
+              chapterTitle: matchedChapter?.title,
+              completed: isFinished,
+            }).catch(() => {});
+          }
         });
 
         rendition.on("rendered", () => {
-          setIsReaderBooting(false);
+          if (!cancelled) {
+            setIsEpubMode(true);
+            setIsReaderBooting(false);
+          }
         });
 
-        await book.ready;
-        applyPreferencesToRendition(preferences);
+        await bookEngine.ready;
 
-        const initialTarget =
-          currentLocatorRef.current ||
-          progressQuery.data?.locator ||
-          resolveReaderHref(book, manifestQuery.data.spine[0]?.href ?? "") ||
-          undefined;
+        // Extract real table of contents from EPUB
+        const tocItems: Array<{ id: string; title: string; href: string }> = (bookEngine.navigation?.toc || []).map((t: any) => ({
+          id: t.id || t.href,
+          title: (t.label || "").trim() || "Capítulo",
+          href: t.href,
+        }));
+
+        if (!cancelled) {
+          setChapters(tocItems);
+          setIsEpubMode(true);
+        }
+
+        // Restore saved position or display from beginning
+        let savedCfi = localStorage.getItem(cfiStorageKey);
+        if (!savedCfi && bookId) {
+          try {
+            const rawProgress = localStorage.getItem(`lura_book_progress_${bookId}`);
+            if (rawProgress) {
+              const parsed = JSON.parse(rawProgress);
+              if (parsed.locator) savedCfi = parsed.locator;
+            }
+          } catch {}
+        }
 
         try {
-          if (initialTarget) {
-            await rendition.display(initialTarget);
+          if (savedCfi) {
+            await rendition.display(savedCfi);
           } else {
             await rendition.display();
           }
@@ -440,496 +618,357 @@ export function BookReaderPage() {
           await rendition.display();
         }
 
-        setIsReaderBooting(false);
-        void book.locations
+        if (!cancelled) {
+          setIsEpubMode(true);
+          setIsReaderBooting(false);
+          if (bookId) {
+            const matchedChapter = tocItems.find((c) => currentSectionHref && c.href && currentSectionHref.includes(c.href));
+            const isFinished = progressPercent >= 100 || (totalPages > 1 && currentPage >= totalPages);
+            saveBookProgress(bookId, {
+              spineIndex: 0,
+              sectionHref: currentSectionHref,
+              locator: savedCfi || "",
+              progressPercent: progressPercent,
+              currentPage: currentPage,
+              totalPages: totalPages,
+              title: book.title || bookQuery.data?.title,
+              coverUrl: book.coverUrl || bookQuery.data?.coverUrl,
+              chapterTitle: matchedChapter?.title,
+              completed: isFinished,
+            }).catch(() => {});
+          }
+        }
+
+        // Generate locations for accurate total pages and page jumping
+        void bookEngine.locations
           .generate(1024)
           .then(() => {
+            if (cancelled) return;
             locationsReadyRef.current = true;
-            const currentLocator = currentLocatorRef.current;
-
-            if (!currentLocator) {
-              return;
-            }
-
-            try {
-              setProgressPercent(Math.round(book.locations.percentageFromCfi(currentLocator) * 100));
-            } catch {
-              // no-op when EPUB locations cannot resolve current CFI
+            const total = bookEngine.locations.total;
+            if (typeof total === "number" && total > 0) {
+              setTotalPages(total);
+              const currentLocation = rendition.currentLocation?.() || renditionRef.current?.location;
+              const currentCfi = currentLocation?.start?.cfi;
+              if (currentCfi) {
+                try {
+                  const updatedPct = Math.min(100, Math.max(0, Math.round(bookEngine.locations.percentageFromCfi(currentCfi) * 100)));
+                  const loc = bookEngine.locations.locationFromCfi(currentCfi);
+                  const updatedPage = typeof loc === "number" && loc >= 0 ? loc + 1 : currentPage;
+                  setProgressPercent(updatedPct);
+                  setCurrentPage(updatedPage);
+                  if (bookId) {
+                    const matchedChapter = tocItems.find((c) => currentSectionHref && c.href && currentSectionHref.includes(c.href));
+                    const isFinished = updatedPct >= 100 || (total > 1 && updatedPage >= total);
+                    saveBookProgress(bookId, {
+                      spineIndex: 0,
+                      sectionHref: currentSectionHref,
+                      locator: currentCfi,
+                      progressPercent: updatedPct,
+                      currentPage: updatedPage,
+                      totalPages: total,
+                      title: book.title || bookQuery.data?.title,
+                      coverUrl: book.coverUrl || bookQuery.data?.coverUrl,
+                      chapterTitle: matchedChapter?.title,
+                      completed: isFinished,
+                    }).catch(() => {});
+                  }
+                } catch {}
+              }
             }
           })
           .catch(() => {
             locationsReadyRef.current = false;
           });
-      } catch (error) {
-        const message =
-          error instanceof Error && error.message
-            ? error.message
-            : "No pudimos abrir este EPUB en el reader.";
-        setReaderInitError(message);
-        setIsReaderBooting(false);
+      } catch (err) {
+        console.error("Error loading EPUB:", err);
+        if (!cancelled) {
+          setIsEpubMode(false);
+          setIsReaderBooting(false);
+        }
       }
     }
 
-    void loadBook();
+    void initEpub();
 
     return () => {
       cancelled = true;
-
-      if (saveProgressTimeoutRef.current !== null) {
-        window.clearTimeout(saveProgressTimeoutRef.current);
-      }
-
-      renditionRef.current?.destroy?.();
-      bookRef.current?.destroy?.();
+      try {
+        renditionRef.current?.destroy?.();
+        bookEngineRef.current?.destroy?.();
+      } catch {}
       renditionRef.current = null;
-      bookRef.current = null;
+      bookEngineRef.current = null;
     };
-  }, [
-    applyPreferencesToRendition,
-    bookId,
-    epubBlobQuery.data,
-    manifestQuery.data,
-    preferences?.mode,
-    progressQuery.data?.locator,
-  ]);
+  }, [bookId, reloadKey, cfiStorageKey, progressStorageKey]);
 
+  // --- NAVIGATION (TWO-PAGE SPREAD) ---
+  const canPrev = currentPage > 1;
+  const canNext = currentPage < totalPages;
+
+  const handlePrevPage = useCallback(() => {
+    if (isEpubMode && renditionRef.current) {
+      renditionRef.current.prev?.();
+    } else {
+      setCurrentPage((prev) => Math.max(1, prev - 2));
+    }
+  }, [isEpubMode]);
+
+  const handleNextPage = useCallback(() => {
+    if (isEpubMode && renditionRef.current) {
+      renditionRef.current.next?.();
+    } else {
+      setCurrentPage((prev) => Math.min(totalPages - 1, prev + 2));
+    }
+  }, [isEpubMode, totalPages]);
+
+  const handlePageSelect = useCallback(
+    (target: number) => {
+      const normalized = Math.max(1, Math.min(totalPages, target));
+      setCurrentPage(normalized);
+
+      if (isEpubMode && bookEngineRef.current && renditionRef.current) {
+        try {
+          if (locationsReadyRef.current && bookEngineRef.current.locations) {
+            const cfi = bookEngineRef.current.locations.cfiFromLocation(normalized - 1);
+            if (cfi) {
+              void renditionRef.current.display(cfi);
+              return;
+            }
+          }
+          const pct = (normalized - 1) / Math.max(1, totalPages - 1);
+          const cfi = bookEngineRef.current.locations.cfiFromPercentage(pct);
+          if (cfi) {
+            void renditionRef.current.display(cfi);
+          }
+        } catch {}
+      }
+    },
+    [isEpubMode, totalPages]
+  );
+
+  const handleTocNavigate = useCallback(
+    (target: string | number) => {
+      if (isEpubMode && renditionRef.current && typeof target === "string") {
+        void renditionRef.current.display(target);
+      } else if (typeof target === "number") {
+        handlePageSelect(target);
+      }
+    },
+    [handlePageSelect, isEpubMode]
+  );
+
+  // --- FULLSCREEN & WINDOW CONTROLS ---
   useEffect(() => {
     const onFullscreenChange = () => {
       setIsFullscreen(Boolean(document.fullscreenElement));
     };
-
     document.addEventListener("fullscreenchange", onFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
   }, []);
 
-  function endSessionIfNeeded(preferKeepalive = false) {
-    const activeSessionId = sessionIdRef.current;
-    if (!activeSessionId || sessionEndRequestedRef.current) {
-      return;
-    }
-
-    sessionEndRequestedRef.current = true;
-    if (preferKeepalive) {
-      endReadingSessionKeepalive(activeSessionId);
-      return;
-    }
-
-    void endReadingSession(activeSessionId).catch(() => {
-      // no-op cleanup path
-    });
-  }
-
-  useEffect(() => {
-    const onPageHide = () => endSessionIfNeeded(true);
-
-    window.addEventListener("pagehide", onPageHide);
-
-    return () => {
-      window.removeEventListener("pagehide", onPageHide);
-      endSessionIfNeeded();
-      if (document.fullscreenElement) {
-        void document.exitFullscreen().catch(() => {});
-      }
-    };
-  }, []);
-
   const handleToggleFullscreen = useCallback(async () => {
     if (document.fullscreenElement) {
-      await document.exitFullscreen();
+      await document.exitFullscreen().catch(() => {});
     } else {
-      await shellRef.current?.requestFullscreen?.();
+      await shellRef.current?.requestFullscreen?.().catch(() => {});
     }
   }, []);
 
-  const handlePrevHotkey = useCallback(() => {
-    const rendition = renditionRef.current;
-    if (!rendition) return;
-    rendition.prev?.();
-  }, []);
+  const handleMinimize = useCallback(() => {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => {});
+    } else {
+      endSessionIfNeeded(false);
+      navigate(bookId ? `/books/${bookId}` : "/books");
+    }
+  }, [bookId, navigate, endSessionIfNeeded]);
 
-  const handleNextHotkey = useCallback(() => {
-    const rendition = renditionRef.current;
-    if (!rendition) return;
-    rendition.next?.();
-  }, []);
+  const handleClose = useCallback(() => {
+    endSessionIfNeeded(false);
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => {});
+    }
+    navigate(bookId ? `/books/${bookId}` : "/books");
+  }, [bookId, navigate, endSessionIfNeeded]);
 
-  useReaderHotkeys({
-    onNext: handleNextHotkey,
-    onPrev: handlePrevHotkey,
-    onToggleFullscreen: handleToggleFullscreen,
-  });
-
-  const isLoading =
-    bookQuery.isLoading ||
-    manifestQuery.isLoading ||
-    preferencesQuery.isLoading ||
-    epubBlobQuery.isLoading;
-  const isError =
-    bookQuery.isError ||
-    manifestQuery.isError ||
-    preferencesQuery.isError ||
-    epubBlobQuery.isError;
-  const toc = manifestQuery.data?.toc ?? [];
-  const currentPalette = themeColors(preferences?.theme ?? "light");
-
-  if (isLoading) {
-    return <Loading text="Preparando lector EPUB..." />;
-  }
-
-  if (isError) {
-    return (
-      <section className="grid">
-        {bookQuery.isError && <ErrorBox error={bookQuery.error} />}
-        {manifestQuery.isError && <ErrorBox error={manifestQuery.error} />}
-        {preferencesQuery.isError && <ErrorBox error={preferencesQuery.error} />}
-        {epubBlobQuery.isError && <ErrorBox error={epubBlobQuery.error} />}
-      </section>
-    );
-  }
-
-  if (!bookQuery.data || !manifestQuery.data || !preferences) {
-    return <Loading text="Preparando lector EPUB..." />;
-  }
-
-  if (readerInitError) {
-    return (
-      <section className="grid">
-        <article className="card">
-          <h1>{bookQuery.data.title}</h1>
-          <p className="error-text">{readerInitError}</p>
-          <p className="muted-text">
-            El endpoint del libro responde, pero el motor EPUB fallo al inicializar el archivo en el navegador.
-          </p>
-          <Link to={`/books/${bookId}`}>Volver al detalle</Link>
-        </article>
-      </section>
-    );
-  }
-
-  if (bookQuery.data.readerStatus !== "READY") {
-    return (
-      <section className="grid">
-        <article className="card">
-          <h1>{bookQuery.data.title}</h1>
-          <p className="muted-text">
-            Este book todavia no esta listo para lectura. Estado: {bookQuery.data.readerStatus}
-          </p>
-          <Link to={`/books/${bookId}`}>Volver al detalle</Link>
-        </article>
-      </section>
-    );
-  }
-
-  const updateMode = (mode: BookReaderMode) => {
-    const currentLocation = currentLocatorRef.current;
-
-    setPreferences((current) => {
-      if (!current) {
-        return current;
+  // --- KEYBOARD SHORTCUTS ---
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
       }
 
-      return {
-        ...current,
-        mode,
-      };
-    });
-
-    if (currentLocation) {
-      currentLocatorRef.current = currentLocation;
+      if (e.key === "ArrowLeft" || e.key === "PageUp") {
+        e.preventDefault();
+        handlePrevPage();
+      } else if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") {
+        e.preventDefault();
+        handleNextPage();
+      } else if (e.key === "Escape") {
+        if (isBookmarksOpen) setIsBookmarksOpen(false);
+        else if (isNotesOpen) setIsNotesOpen(false);
+        else if (isTocOpen) setIsTocOpen(false);
+        else if (isSettingsOpen) setIsSettingsOpen(false);
+      } else if (e.key === "f" || e.key === "F") {
+        void handleToggleFullscreen();
+      }
     }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    handlePrevPage,
+    handleNextPage,
+    handleToggleFullscreen,
+    isBookmarksOpen,
+    isNotesOpen,
+    isTocOpen,
+    isSettingsOpen,
+  ]);
+
+  // --- BOOKMARKS & NOTES ACTIONS ---
+  const handleAddBookmark = (pageNumber: number, label?: string) => {
+    setBookmarks((prev) => [
+      ...prev,
+      {
+        id: `bm-${Date.now()}`,
+        pageNumber,
+        label: label || `Página ${pageNumber}`,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
   };
 
-  const readerReady = Boolean(renditionRef.current) && !isReaderBooting;
-
-  const handlePrev = () => {
-    const rendition = renditionRef.current;
-    if (!rendition || isReaderBooting) {
-      return;
-    }
-
-    rendition.prev?.();
+  const handleRemoveBookmark = (id: string) => {
+    setBookmarks((prev) => prev.filter((b) => b.id !== id));
   };
 
-  const handleNext = () => {
-    const rendition = renditionRef.current;
-    if (!rendition || isReaderBooting) {
-      return;
-    }
-
-    rendition.next?.();
+  const handleAddNote = (pageNumber: number, text: string) => {
+    setNotes((prev) => [
+      ...prev,
+      {
+        id: `note-${Date.now()}`,
+        pageNumber,
+        text,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
   };
 
-  const handleTocNavigate = (target: string) => {
-    const rendition = renditionRef.current;
-    const book = bookRef.current;
-    if (!rendition || !book || isReaderBooting) {
-      return;
-    }
-
-    const [href, anchor] = target.split("#");
-    const resolvedHref = resolveReaderHref(book, href ?? "");
-    const resolvedTarget = anchor ? `${resolvedHref}#${anchor}` : resolvedHref;
-    rendition.display?.(resolvedTarget);
+  const handleRemoveNote = (id: string) => {
+    setNotes((prev) => prev.filter((n) => n.id !== id));
   };
 
   return (
     <div
-      className="book-reader-shell"
       ref={shellRef}
-      style={{ background: currentPalette.chrome }}
+      className={`book-window-shell theme-${theme} ${
+        brightnessEnabled ? "brightness-active" : ""
+      }`}
     >
-      <header className="book-reader-topbar">
-        <div className="book-reader-titleblock">
-          <p className="book-reader-kicker">{bookQuery.data.author || "Book"}</p>
-          <h1>{bookQuery.data.title}</h1>
-          <p className="book-reader-meta">
-            {currentLabel} | {pageLabel} | {progressPercent}%
-          </p>
-        </div>
+      {/* 1. WINDOW TOPBAR */}
+      <BookReaderWindowHeader
+        title={book.title}
+        author={book.author}
+        isFullscreen={isFullscreen}
+        onToggleToc={() => setIsTocOpen((prev) => !prev)}
+        onToggleFullscreen={handleToggleFullscreen}
+        onMinimize={handleMinimize}
+        onClose={handleClose}
+      />
 
-        <div className="book-reader-actions">
-          <button type="button" onClick={() => setTocOpen((open) => !open)}>
-            {tocOpen ? "Ocultar panel" : "Mostrar panel"}
-          </button>
+      {/* 2. MAIN READING STAGE */}
+      <main className="book-reader-stage-main">
+        <BookPageSpread
+          viewportRef={viewportRef}
+          isEpubMode={isEpubMode}
+          isBooting={isReaderBooting}
+          bookTitle={book.title}
+          bookAuthor={book.author}
+          onPrevPage={handlePrevPage}
+          onNextPage={handleNextPage}
+          onRetry={handleRetry}
+          canPrev={canPrev}
+          canNext={canNext}
+        />
+
+        {/* FLOATING SETTINGS TRIGGER BUTTON */}
+        {!isSettingsOpen && (
           <button
             type="button"
-            onClick={async () => {
-              if (document.fullscreenElement) {
-                await document.exitFullscreen();
-              } else {
-                await shellRef.current?.requestFullscreen?.();
-              }
-            }}
+            className="book-settings-float-trigger"
+            onClick={() => setIsSettingsOpen(true)}
+            title="Abrir configuración de lectura"
+            aria-label="Configuración de lectura"
           >
-            {isFullscreen ? "Salir pantalla completa" : "Pantalla completa"}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
           </button>
-          <button
-            type="button"
-            onClick={async () => {
-              if (document.fullscreenElement) {
-                try {
-                  await document.exitFullscreen();
-                } catch {
-                  // ignore
-                }
-              }
-              endSessionIfNeeded(true);
-              navigate(`/books/${bookId}`);
-            }}
-          >
-            Cerrar
-          </button>
-        </div>
-      </header>
-
-      <div className={tocOpen ? "book-reader-layout" : "book-reader-layout is-sidebar-closed"}>
-        {tocOpen && (
-          <aside className="book-reader-sidebar">
-            <section className="book-reader-sidebar-card">
-              <div className="book-reader-sidebar-heading">
-                <h2>Indice</h2>
-                <span>{toc.length}</span>
-              </div>
-
-              <div className="book-reader-toc">
-                {toc.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={item.href === currentSectionHref ? "book-reader-toc-item active" : "book-reader-toc-item"}
-                    onClick={() => {
-                      handleTocNavigate(item.anchor ? `${item.href}#${item.anchor}` : item.href);
-                    }}
-                    disabled={!readerReady}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            <section className="book-reader-sidebar-card">
-              <div className="book-reader-sidebar-heading">
-                <h2>Apariencia</h2>
-                <span>{preferences.mode === "SCROLL" ? "Scroll" : "Paginado"}</span>
-              </div>
-
-              <div className="book-reader-form-grid">
-                <label>
-                  Modo
-                  <select
-                    value={preferences.mode}
-                    onChange={(event) =>
-                      updateMode(event.target.value === "SCROLL" ? "SCROLL" : "PAGINATED")
-                    }
-                  >
-                    <option value="PAGINATED">Paginado</option>
-                    <option value="SCROLL">Scroll</option>
-                  </select>
-                </label>
-
-                <label>
-                  Tema
-                  <select
-                    value={preferences.theme}
-                    onChange={(event) =>
-                      setPreferences((current) =>
-                        current ? { ...current, theme: event.target.value } : current
-                      )
-                    }
-                  >
-                    <option value="light">Claro</option>
-                    <option value="sepia">Sepia</option>
-                    <option value="dark">Oscuro</option>
-                  </select>
-                </label>
-
-                <label>
-                  Fuente
-                  <select
-                    value={preferences.fontFamily}
-                    onChange={(event) =>
-                      setPreferences((current) =>
-                        current ? { ...current, fontFamily: event.target.value } : current
-                      )
-                    }
-                  >
-                    <option value="system-ui">System UI</option>
-                    <option value="Georgia">Georgia</option>
-                    <option value="Arial">Arial</option>
-                    <option value="Palatino">Palatino</option>
-                  </select>
-                </label>
-
-                <label>
-                  Tamano de texto
-                  <input
-                    type="range"
-                    min={14}
-                    max={30}
-                    step={1}
-                    value={preferences.fontSize}
-                    onChange={(event) =>
-                      setPreferences((current) =>
-                        current ? { ...current, fontSize: Number(event.target.value) } : current
-                      )
-                    }
-                  />
-                </label>
-
-                <label>
-                  Interlineado
-                  <input
-                    type="range"
-                    min={1.2}
-                    max={2.2}
-                    step={0.1}
-                    value={preferences.lineHeight}
-                    onChange={(event) =>
-                      setPreferences((current) =>
-                        current ? { ...current, lineHeight: Number(event.target.value) } : current
-                      )
-                    }
-                  />
-                </label>
-
-                <label>
-                  Alineacion
-                  <select
-                    value={preferences.textAlign}
-                    onChange={(event) =>
-                      setPreferences((current) =>
-                        current ? { ...current, textAlign: event.target.value } : current
-                      )
-                    }
-                  >
-                    <option value="left">Izquierda</option>
-                    <option value="justify">Justificado</option>
-                  </select>
-                </label>
-
-                <label>
-                  Ancho de pagina
-                  <input
-                    type="range"
-                    min={460}
-                    max={920}
-                    step={20}
-                    value={preferences.pageWidth}
-                    onChange={(event) =>
-                      setPreferences((current) =>
-                        current ? { ...current, pageWidth: Number(event.target.value) } : current
-                      )
-                    }
-                  />
-                </label>
-              </div>
-            </section>
-          </aside>
         )}
 
-        <section
-          className="book-reader-stage"
-          style={{ background: currentPalette.stage }}
-        >
-          <div className="book-reader-nav-column">
-            <button type="button" onClick={handlePrev} aria-label="Seccion anterior" disabled={!readerReady}>
-              {"<"}
-            </button>
-          </div>
+        {/* FLOATING SETTINGS PANEL */}
+        <BookSettingsPanel
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          fontSize={fontSize}
+          onFontSizeChange={setFontSize}
+          fontFamily={fontFamily}
+          onFontFamilyChange={setFontFamily}
+          theme={theme}
+          onThemeChange={setTheme}
+          brightnessEnabled={brightnessEnabled}
+          onToggleBrightness={() => setBrightnessEnabled((prev) => !prev)}
+        />
+      </main>
 
-          <div className="book-reader-viewport-wrap">
-            {isReaderBooting && (
-              <div className="book-reader-loading">
-                <Loading text="Renderizando EPUB..." />
-              </div>
-            )}
+      {/* 3. FLOATING BOTTOM DOCK */}
+      <BookBottomDock
+        currentPage={currentPage}
+        totalPages={totalPages}
+        progressPercent={progressPercent}
+        onPageChange={handlePageSelect}
+        onOpenBookmarks={() => setIsBookmarksOpen(true)}
+        onOpenNotes={() => setIsNotesOpen(true)}
+        bookmarksCount={bookmarks.length}
+        notesCount={notes.length}
+      />
 
-            <div
-              className="book-reader-viewport-frame"
-              style={{ background: currentPalette.background }}
-            >
-              <div ref={viewportRef} className="book-reader-viewport" />
-            </div>
-          </div>
+      {/* 4. MODALS & DRAWERS */}
+      <BookBookmarksModal
+        isOpen={isBookmarksOpen}
+        onClose={() => setIsBookmarksOpen(false)}
+        currentPage={currentPage}
+        bookmarks={bookmarks}
+        onAddBookmark={handleAddBookmark}
+        onRemoveBookmark={handleRemoveBookmark}
+        onSelectBookmark={handlePageSelect}
+      />
 
-          <div className="book-reader-nav-column">
-            <button type="button" onClick={handleNext} aria-label="Seccion siguiente" disabled={!readerReady}>
-              {">"}
-            </button>
-          </div>
-        </section>
-      </div>
+      <BookNotesModal
+        isOpen={isNotesOpen}
+        onClose={() => setIsNotesOpen(false)}
+        currentPage={currentPage}
+        notes={notes}
+        onAddNote={handleAddNote}
+        onRemoveNote={handleRemoveNote}
+        onSelectPage={handlePageSelect}
+      />
 
-      <footer className="book-reader-bottombar">
-        <button
-          type="button"
-          className="book-reader-bottom-button"
-          onClick={handlePrev}
-          disabled={!readerReady}
-        >
-          Anterior
-        </button>
-
-        <div className="book-reader-progress">
-          <div className="book-reader-progress-meta">
-            <span>{currentLabel}</span>
-            <strong>{progressPercent}%</strong>
-          </div>
-          <div className="book-reader-progress-track">
-            <span style={{ width: `${progressPercent}%` }} />
-          </div>
-        </div>
-
-        <button
-          type="button"
-          className="book-reader-bottom-button"
-          onClick={handleNext}
-          disabled={!readerReady}
-        >
-          Siguiente
-        </button>
-      </footer>
+      <BookTocDrawer
+        isOpen={isTocOpen}
+        onClose={() => setIsTocOpen(false)}
+        chapters={chapters}
+        currentPage={currentPage}
+        currentSectionHref={currentSectionHref}
+        onSelectChapter={handleTocNavigate}
+        bookTitle={book.title}
+      />
     </div>
   );
 }
