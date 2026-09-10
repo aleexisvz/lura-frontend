@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { getBookById, getBookFileBlob } from "@/features/books/api";
+import { getBookById, getBookFileBlob, saveBookProgress } from "@/features/books/api";
 import {
   endReadingSession,
   endReadingSessionKeepalive,
@@ -21,12 +21,9 @@ import {
 } from "../components/BookBookmarksModal";
 import { BookNotesModal, BookNote } from "../components/BookNotesModal";
 import { BookTocDrawer, TocChapterItem } from "../components/BookTocDrawer";
-import {
-  DEMO_BOOK,
-  getBookPage,
-} from "../components/bookDemoContent";
 
 const PREFS_STORAGE_KEY = "lura_book_reader_preferences";
+const epubBufferCache = new Map<string, ArrayBuffer>();
 
 function themeColors(theme: BookTheme) {
   if (theme === "dark") {
@@ -71,11 +68,10 @@ function applyEpubTheme(
       color: `${palette.textColor} !important`,
       "font-family": `${fontFamily} !important`,
       "font-size": `${fontSize}px !important`,
-      "line-height": "1.68 !important",
+      "line-height": "1.7 !important",
       "text-align": "justify !important",
-      padding: "36px 44px 28px 44px !important",
-      margin: "0 auto !important",
-      "column-gap": "56px !important",
+      padding: "0 !important",
+      margin: "0 !important",
       "box-sizing": "border-box !important",
     },
     p: {
@@ -94,6 +90,8 @@ function applyEpubTheme(
       "line-height": "1.25 !important",
       "margin-block": "1.2em 0.8em !important",
       "text-align": "center !important",
+      "page-break-before": "always !important",
+      "break-before": "page !important",
     },
     h2: {
       "font-family": `${fontFamily} !important`,
@@ -113,6 +111,13 @@ function applyEpubTheme(
       height: "auto !important",
     },
   });
+
+  try {
+    rendition.themes?.fontSize?.(`${fontSize}px`);
+    rendition.themes?.font?.(fontFamily);
+    rendition.themes?.override?.("color", `${palette.textColor} !important`);
+    rendition.themes?.override?.("background", `${palette.pageBg} !important`);
+  } catch {}
 }
 
 export function BookReaderPage() {
@@ -137,30 +142,64 @@ export function BookReaderPage() {
         id: bookQuery.data.id,
         title: bookQuery.data.title,
         author: bookQuery.data.author,
+        coverUrl: bookQuery.data.coverUrl || null,
         epubUrl: bookQuery.data.epubUrl || null,
         hasEpub: bookQuery.data.hasEpub,
       };
     }
     return {
-      id: bookId || DEMO_BOOK.id,
-      title: DEMO_BOOK.title,
-      author: DEMO_BOOK.author,
+      id: bookId || "",
+      title: "",
+      author: "",
+      coverUrl: null,
       epubUrl: null,
       hasEpub: false,
     };
   }, [bookQuery.data, bookId]);
 
+  // Ensure local progress metadata contains real book title and cover
+  useEffect(() => {
+    if (bookId && bookQuery.data?.title) {
+      try {
+        const raw = localStorage.getItem(`lura_book_progress_${bookId}`);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          let changed = false;
+          if (!parsed.title || parsed.title === "Book") {
+            parsed.title = bookQuery.data.title;
+            changed = true;
+          }
+          if (!parsed.coverUrl && bookQuery.data.coverUrl) {
+            parsed.coverUrl = bookQuery.data.coverUrl;
+            changed = true;
+          }
+          if (changed) {
+            localStorage.setItem(`lura_book_progress_${bookId}`, JSON.stringify(parsed));
+          }
+        }
+      } catch {}
+    }
+  }, [bookId, bookQuery.data]);
+
   // --- PERSISTED READING POSITION (Starts at 1, NOT 68) ---
-  const progressStorageKey = `lura_book_page_${book.id}`;
-  const cfiStorageKey = `lura_book_cfi_${book.id}`;
+  const progressStorageKey = `lura_book_page_${bookId || "demo"}`;
+  const cfiStorageKey = `lura_book_cfi_${bookId || "demo"}`;
 
   const [currentPage, setCurrentPage] = useState<number>(() => {
     try {
+      const savedCfi = localStorage.getItem(cfiStorageKey);
       const saved = localStorage.getItem(progressStorageKey);
-      if (saved) {
+      if (savedCfi && saved) {
         const parsed = Number(saved);
         if (!isNaN(parsed) && parsed >= 1) {
           return parsed;
+        }
+      }
+      const rawFull = localStorage.getItem(`lura_book_progress_${bookId || "demo"}`);
+      if (rawFull) {
+        const parsedObj = JSON.parse(rawFull);
+        if (parsedObj.currentPage && parsedObj.currentPage >= 1) {
+          return parsedObj.currentPage;
         }
       }
     } catch {
@@ -169,12 +208,20 @@ export function BookReaderPage() {
     return 1;
   });
 
-  const [totalPages, setTotalPages] = useState<number>(100);
+  const [totalPages, setTotalPages] = useState<number>(1);
   const [progressPercent, setProgressPercent] = useState<number>(0);
   const [currentSectionHref, setCurrentSectionHref] = useState<string>("");
   const [chapters, setChapters] = useState<TocChapterItem[]>([]);
   const [isEpubMode, setIsEpubMode] = useState<boolean>(false);
   const [isReaderBooting, setIsReaderBooting] = useState<boolean>(true);
+  const [reloadKey, setReloadKey] = useState<number>(0);
+
+  const handleRetry = useCallback(() => {
+    if (bookId) {
+      epubBufferCache.delete(bookId);
+    }
+    setReloadKey((k) => k + 1);
+  }, [bookId]);
 
   // --- READER PREFERENCES ---
   const [fontSize, setFontSize] = useState<number>(() => {
@@ -238,16 +285,28 @@ export function BookReaderPage() {
     }
   }, [theme, fontFamily, fontSize]);
 
-  // --- BOOKMARKS & NOTES (NO FAKE DATA) ---
+  // --- BOOKMARKS & NOTES (NO FAKE DATA, PURGE LEGACY MOCK) ---
   const bookmarksStorageKey = `lura_book_bookmarks_${book.id}`;
   const [bookmarks, setBookmarks] = useState<BookBookmark[]>(() => {
     try {
       const saved = localStorage.getItem(bookmarksStorageKey);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(
+            (b) =>
+              b &&
+              typeof b === "object" &&
+              b.id !== "bm-1" &&
+              !String(b.id || "").startsWith("bm-1") &&
+              !String(b.label || "").includes("El juramento")
+          );
+        }
+      }
     } catch {
       // ignore
     }
-    return []; // Empty by default!
+    return [];
   });
 
   useEffect(() => {
@@ -262,11 +321,23 @@ export function BookReaderPage() {
   const [notes, setNotes] = useState<BookNote[]>(() => {
     try {
       const saved = localStorage.getItem(notesStorageKey);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(
+            (n) =>
+              n &&
+              typeof n === "object" &&
+              n.id !== "note-1" &&
+              !String(n.id || "").startsWith("note-1") &&
+              !String(n.text || "").includes("ley de la corte")
+          );
+        }
+      }
     } catch {
       // ignore
     }
-    return []; // Empty by default!
+    return [];
   });
 
   useEffect(() => {
@@ -285,30 +356,88 @@ export function BookReaderPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // --- SESSION TRACKING ---
+  const hasStartedRef = useRef<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const sessionEndRequestedRef = useRef(false);
+  const startPromiseRef = useRef<Promise<string | null> | null>(null);
 
   useEffect(() => {
     if (!bookId) return;
+    if (hasStartedRef.current === bookId) return;
+    hasStartedRef.current = bookId;
 
-    let isSubscribed = true;
-    startBookReadingSession(bookId)
+    const promise = startBookReadingSession(bookId)
       .then((id) => {
-        if (isSubscribed && id) {
+        if (id) {
           sessionIdRef.current = id;
+          return id;
         }
+        return null;
       })
-      .catch(() => {});
+      .catch(() => null);
 
-    return () => {
-      isSubscribed = false;
-      const activeSessionId = sessionIdRef.current;
-      if (activeSessionId && !sessionEndRequestedRef.current) {
-        sessionEndRequestedRef.current = true;
-        endReadingSessionKeepalive(activeSessionId);
+    startPromiseRef.current = promise;
+  }, [bookId]);
+
+  const endSessionIfNeeded = useCallback((preferKeepalive = false) => {
+    if (sessionEndRequestedRef.current) return;
+    sessionEndRequestedRef.current = true;
+
+    const terminate = (id: string) => {
+      if (preferKeepalive) {
+        endReadingSessionKeepalive(id);
+      } else {
+        void endReadingSession(id).catch(() => {});
       }
     };
-  }, [bookId]);
+
+    const activeSessionId = sessionIdRef.current;
+    if (activeSessionId) {
+      terminate(activeSessionId);
+    } else if (startPromiseRef.current) {
+      startPromiseRef.current.then((id) => {
+        if (id) terminate(id);
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    const handlePageHide = () => {
+      endSessionIfNeeded(true);
+    };
+
+    window.addEventListener("pagehide", handlePageHide);
+    window.addEventListener("beforeunload", handlePageHide);
+
+    return () => {
+      window.removeEventListener("pagehide", handlePageHide);
+      window.removeEventListener("beforeunload", handlePageHide);
+      endSessionIfNeeded(false);
+    };
+  }, [endSessionIfNeeded]);
+
+  // --- RESIZE HANDLER FOR EPUB ---
+  useEffect(() => {
+    let resizeTimeout: any = null;
+    const handleResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        if (renditionRef.current && viewportRef.current) {
+          try {
+            const rect = viewportRef.current.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+              renditionRef.current.resize(rect.width, rect.height);
+            }
+          } catch {}
+        }
+      }, 150);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => {
+      clearTimeout(resizeTimeout);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
 
   // --- LOAD REAL EPUB ENGINE ---
   useEffect(() => {
@@ -319,35 +448,37 @@ export function BookReaderPage() {
       setIsReaderBooting(true);
 
       try {
-        let arrayBuffer: ArrayBuffer | null = null;
+        let arrayBuffer: ArrayBuffer | null = bookId ? (epubBufferCache.get(bookId) || null) : null;
 
-        // Try direct CDN or backend file stream
-        if (book.epubUrl) {
-          try {
-            const res = await fetch(book.epubUrl);
-            if (res.ok) {
-              arrayBuffer = await res.arrayBuffer();
-            }
-          } catch {
-            // CORS/network fallback to backend endpoint
-          }
-        }
-
+        // 1. Prioritize backend streaming (guaranteed CORS + authentication + memory cached)
         if (!arrayBuffer && bookId) {
           try {
             const blob = await getBookFileBlob(bookId);
             arrayBuffer = await blob.arrayBuffer();
-          } catch {
-            // No file available
+            epubBufferCache.set(bookId, arrayBuffer);
+          } catch (err) {
+            console.warn("Backend EPUB streaming error:", err);
+          }
+        }
+
+        // 2. Direct CDN fallback if backend was unavailable
+        if (!arrayBuffer && bookQuery.data?.epubUrl) {
+          try {
+            const res = await fetch(bookQuery.data.epubUrl);
+            if (res.ok) {
+              arrayBuffer = await res.arrayBuffer();
+              if (bookId) epubBufferCache.set(bookId, arrayBuffer);
+            }
+          } catch (err) {
+            console.warn("Direct CDN fetch error:", err);
           }
         }
 
         if (!arrayBuffer || cancelled || !viewportRef.current) {
-          // Fallback to demo mode if no EPUB found
-          setIsEpubMode(false);
-          setIsReaderBooting(false);
-          setChapters(DEMO_BOOK.chapters);
-          setTotalPages(DEMO_BOOK.totalPages);
+          if (!cancelled) {
+            setIsEpubMode(false);
+            setIsReaderBooting(false);
+          }
           return;
         }
 
@@ -363,17 +494,26 @@ export function BookReaderPage() {
         const bookEngine = ePubFactory(arrayBuffer);
         bookEngineRef.current = bookEngine;
 
-        // Render paginated spread: two entire facing pages side-by-side
+        // Render paginated spread: two entire facing pages side-by-side with 60px center gap
         const rendition = bookEngine.renderTo(viewportRef.current, {
           width: "100%",
           height: "100%",
           flow: "paginated",
           spread: "always",
           minSpreadWidth: 700,
+          gap: 60,
         });
         renditionRef.current = rendition;
 
         applyEpubTheme(rendition, theme, fontFamily, fontSize);
+
+        rendition.on("keyup", (e: any) => {
+          if (e.key === "ArrowLeft" || e.key === "PageUp") {
+            handlePrevPage();
+          } else if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") {
+            handleNextPage();
+          }
+        });
 
         rendition.on("relocated", (location: any) => {
           if (cancelled) return;
@@ -409,16 +549,35 @@ export function BookReaderPage() {
           if (calculatedTotal > 1) {
             setTotalPages(calculatedTotal);
           }
-          setProgressPercent(Math.min(100, Math.max(0, pct)));
+          const finalPct = Math.min(100, Math.max(0, pct));
+          setProgressPercent(finalPct);
 
           try {
             if (cfi) localStorage.setItem(cfiStorageKey, cfi);
             localStorage.setItem(progressStorageKey, String(calculatedPage));
           } catch {}
+
+          if (bookId) {
+            const matchedChapter = chapters.find((c) => href && c.href && href.includes(c.href));
+            const isFinished = location?.atEnd === true || finalPct >= 100 || (calculatedTotal > 1 && calculatedPage >= calculatedTotal);
+            saveBookProgress(bookId, {
+              spineIndex: 0,
+              sectionHref: href,
+              locator: cfi,
+              progressPercent: finalPct,
+              currentPage: calculatedPage,
+              totalPages: calculatedTotal,
+              title: book.title || bookQuery.data?.title,
+              coverUrl: book.coverUrl || bookQuery.data?.coverUrl,
+              chapterTitle: matchedChapter?.title,
+              completed: isFinished,
+            }).catch(() => {});
+          }
         });
 
         rendition.on("rendered", () => {
           if (!cancelled) {
+            setIsEpubMode(true);
             setIsReaderBooting(false);
           }
         });
@@ -426,19 +585,29 @@ export function BookReaderPage() {
         await bookEngine.ready;
 
         // Extract real table of contents from EPUB
-        const tocItems = (bookEngine.navigation?.toc || []).map((t: any) => ({
+        const tocItems: Array<{ id: string; title: string; href: string }> = (bookEngine.navigation?.toc || []).map((t: any) => ({
           id: t.id || t.href,
           title: (t.label || "").trim() || "Capítulo",
           href: t.href,
         }));
 
         if (!cancelled) {
-          setChapters(tocItems.length > 0 ? tocItems : DEMO_BOOK.chapters);
+          setChapters(tocItems);
           setIsEpubMode(true);
         }
 
         // Restore saved position or display from beginning
-        const savedCfi = localStorage.getItem(cfiStorageKey);
+        let savedCfi = localStorage.getItem(cfiStorageKey);
+        if (!savedCfi && bookId) {
+          try {
+            const rawProgress = localStorage.getItem(`lura_book_progress_${bookId}`);
+            if (rawProgress) {
+              const parsed = JSON.parse(rawProgress);
+              if (parsed.locator) savedCfi = parsed.locator;
+            }
+          } catch {}
+        }
+
         try {
           if (savedCfi) {
             await rendition.display(savedCfi);
@@ -449,7 +618,26 @@ export function BookReaderPage() {
           await rendition.display();
         }
 
-        setIsReaderBooting(false);
+        if (!cancelled) {
+          setIsEpubMode(true);
+          setIsReaderBooting(false);
+          if (bookId) {
+            const matchedChapter = tocItems.find((c) => currentSectionHref && c.href && currentSectionHref.includes(c.href));
+            const isFinished = progressPercent >= 100 || (totalPages > 1 && currentPage >= totalPages);
+            saveBookProgress(bookId, {
+              spineIndex: 0,
+              sectionHref: currentSectionHref,
+              locator: savedCfi || "",
+              progressPercent: progressPercent,
+              currentPage: currentPage,
+              totalPages: totalPages,
+              title: book.title || bookQuery.data?.title,
+              coverUrl: book.coverUrl || bookQuery.data?.coverUrl,
+              chapterTitle: matchedChapter?.title,
+              completed: isFinished,
+            }).catch(() => {});
+          }
+        }
 
         // Generate locations for accurate total pages and page jumping
         void bookEngine.locations
@@ -457,19 +645,46 @@ export function BookReaderPage() {
           .then(() => {
             if (cancelled) return;
             locationsReadyRef.current = true;
-            if (bookEngine.locations.total) {
-              setTotalPages(bookEngine.locations.total);
+            const total = bookEngine.locations.total;
+            if (typeof total === "number" && total > 0) {
+              setTotalPages(total);
+              const currentLocation = rendition.currentLocation?.() || renditionRef.current?.location;
+              const currentCfi = currentLocation?.start?.cfi;
+              if (currentCfi) {
+                try {
+                  const updatedPct = Math.min(100, Math.max(0, Math.round(bookEngine.locations.percentageFromCfi(currentCfi) * 100)));
+                  const loc = bookEngine.locations.locationFromCfi(currentCfi);
+                  const updatedPage = typeof loc === "number" && loc >= 0 ? loc + 1 : currentPage;
+                  setProgressPercent(updatedPct);
+                  setCurrentPage(updatedPage);
+                  if (bookId) {
+                    const matchedChapter = tocItems.find((c) => currentSectionHref && c.href && currentSectionHref.includes(c.href));
+                    const isFinished = updatedPct >= 100 || (total > 1 && updatedPage >= total);
+                    saveBookProgress(bookId, {
+                      spineIndex: 0,
+                      sectionHref: currentSectionHref,
+                      locator: currentCfi,
+                      progressPercent: updatedPct,
+                      currentPage: updatedPage,
+                      totalPages: total,
+                      title: book.title || bookQuery.data?.title,
+                      coverUrl: book.coverUrl || bookQuery.data?.coverUrl,
+                      chapterTitle: matchedChapter?.title,
+                      completed: isFinished,
+                    }).catch(() => {});
+                  }
+                } catch {}
+              }
             }
           })
           .catch(() => {
             locationsReadyRef.current = false;
           });
-      } catch {
+      } catch (err) {
+        console.error("Error loading EPUB:", err);
         if (!cancelled) {
           setIsEpubMode(false);
           setIsReaderBooting(false);
-          setChapters(DEMO_BOOK.chapters);
-          setTotalPages(DEMO_BOOK.totalPages);
         }
       }
     }
@@ -485,7 +700,7 @@ export function BookReaderPage() {
       renditionRef.current = null;
       bookEngineRef.current = null;
     };
-  }, [book.epubUrl, bookId, cfiStorageKey, progressStorageKey]);
+  }, [bookId, reloadKey, cfiStorageKey, progressStorageKey]);
 
   // --- NAVIGATION (TWO-PAGE SPREAD) ---
   const canPrev = currentPage > 1;
@@ -563,20 +778,19 @@ export function BookReaderPage() {
   const handleMinimize = useCallback(() => {
     if (document.fullscreenElement) {
       void document.exitFullscreen().catch(() => {});
+    } else {
+      endSessionIfNeeded(false);
+      navigate(bookId ? `/books/${bookId}` : "/books");
     }
-  }, []);
+  }, [bookId, navigate, endSessionIfNeeded]);
 
   const handleClose = useCallback(() => {
-    const activeSessionId = sessionIdRef.current;
-    if (activeSessionId && !sessionEndRequestedRef.current) {
-      sessionEndRequestedRef.current = true;
-      void endReadingSession(activeSessionId).catch(() => {});
-    }
+    endSessionIfNeeded(false);
     if (document.fullscreenElement) {
       void document.exitFullscreen().catch(() => {});
     }
     navigate(bookId ? `/books/${bookId}` : "/books");
-  }, [bookId, navigate]);
+  }, [bookId, navigate, endSessionIfNeeded]);
 
   // --- KEYBOARD SHORTCUTS ---
   useEffect(() => {
@@ -649,20 +863,6 @@ export function BookReaderPage() {
     setNotes((prev) => prev.filter((n) => n.id !== id));
   };
 
-  // Fallback data if EPUB is not used
-  const leftPageData = useMemo(
-    () => (!isEpubMode ? getBookPage(currentPage, book.title, book.author || undefined) : null),
-    [isEpubMode, currentPage, book.title, book.author]
-  );
-
-  const rightPageData = useMemo(
-    () =>
-      !isEpubMode && currentPage + 1 <= totalPages
-        ? getBookPage(currentPage + 1, book.title, book.author || undefined)
-        : null,
-    [isEpubMode, currentPage, totalPages, book.title, book.author]
-  );
-
   return (
     <div
       ref={shellRef}
@@ -686,16 +886,12 @@ export function BookReaderPage() {
         <BookPageSpread
           viewportRef={viewportRef}
           isEpubMode={isEpubMode}
-          leftPage={leftPageData}
-          rightPage={rightPageData}
+          isBooting={isReaderBooting}
           bookTitle={book.title}
           bookAuthor={book.author}
-          fontSize={fontSize}
-          fontFamily={fontFamily}
-          textAlign="justify"
-          lineHeight={1.68}
           onPrevPage={handlePrevPage}
           onNextPage={handleNextPage}
+          onRetry={handleRetry}
           canPrev={canPrev}
           canNext={canNext}
         />

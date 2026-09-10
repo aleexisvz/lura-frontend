@@ -1,19 +1,14 @@
 import { RefObject } from "react";
-import { BookPageData } from "./bookDemoContent";
 
 type BookPageSpreadProps = {
   viewportRef?: RefObject<HTMLDivElement>;
   isEpubMode?: boolean;
-  leftPage?: BookPageData | null;
-  rightPage?: BookPageData | null;
+  isBooting?: boolean;
   bookTitle: string;
   bookAuthor?: string | null;
-  fontSize: number;
-  fontFamily: string;
-  textAlign: string;
-  lineHeight: number;
   onPrevPage: () => void;
   onNextPage: () => void;
+  onRetry?: () => void;
   canPrev: boolean;
   canNext: boolean;
 };
@@ -21,224 +16,122 @@ type BookPageSpreadProps = {
 export function BookPageSpread({
   viewportRef,
   isEpubMode = false,
-  leftPage,
-  rightPage,
+  isBooting = false,
   bookTitle,
   bookAuthor,
-  fontSize,
-  fontFamily,
-  textAlign,
-  lineHeight,
   onPrevPage,
   onNextPage,
+  onRetry,
   canPrev,
   canNext,
 }: BookPageSpreadProps) {
-  const pageTextStyle = {
-    fontFamily: fontFamily || "var(--book-font-serif)",
-    fontSize: `${fontSize}px`,
-    textAlign: (textAlign as any) || "justify",
-    lineHeight: lineHeight || 1.65,
-  };
-
   return (
     <div className="book-spread-wrapper">
       {/* Book cover / backing border */}
       <div className="book-spread-outer">
         {/* Physical book pages container */}
         <div className="book-spread-book">
-          {isEpubMode && viewportRef ? (
-            /* REAL EPUB RENDERING MODE */
-            <div className="book-epub-container">
-              {/* Running header across the top of both pages */}
-              <div className="book-spread-topbar-header">
-                <span className="book-running-title">{bookTitle.toUpperCase()}</span>
-                {bookAuthor && (
-                  <span className="book-running-author">{bookAuthor.toUpperCase()}</span>
-                )}
-              </div>
+          {/* Running header across the top of the open book */}
+          <div className="book-spread-topbar-header">
+            <span className="book-running-title">{bookTitle}</span>
+            {bookAuthor && (
+              <span className="book-running-author">{bookAuthor}</span>
+            )}
+          </div>
 
-              {/* Click navigation zones on left and right edges */}
-              <div
-                className="book-page-click-zone book-zone-left"
-                onClick={onPrevPage}
-                title="Página anterior"
-                aria-label="Página anterior"
-              />
-              <div
-                className="book-page-click-zone book-zone-right"
-                onClick={onNextPage}
-                title="Página siguiente"
-                aria-label="Página siguiente"
-              />
+          {/* Click navigation zones on left and right edges */}
+          <div
+            className="book-page-click-zone book-zone-left"
+            onClick={onPrevPage}
+            title="Página anterior"
+            aria-label="Página anterior"
+          />
+          <div
+            className="book-page-click-zone book-zone-right"
+            onClick={onNextPage}
+            title="Página siguiente"
+            aria-label="Página siguiente"
+          />
 
-              {/* Real EPUB viewport where epubjs mounts iframe */}
-              <div ref={viewportRef} className="book-epub-viewport" />
+          {/* REAL EPUB VIEWPORT: ALWAYS IN DOM WITH REAL LAYOUT DIMENSIONS */}
+          <div
+            ref={viewportRef}
+            className="book-epub-viewport"
+            style={{
+              opacity: isEpubMode ? 1 : 0,
+              pointerEvents: isEpubMode ? "auto" : "none",
+            }}
+          />
 
-              {/* Realistic 3D spine shadow in the center */}
-              <div className="book-spine-gutter" aria-hidden="true">
-                <div className="book-spine-shadow" />
-                <div className="book-spine-stitch" />
-              </div>
+          {/* Realistic 3D spine shadow in the center */}
+          <div className="book-spine-gutter" aria-hidden="true">
+            <div className="book-spine-shadow" />
+            <div className="book-spine-stitch" />
+          </div>
 
-              {/* Turn button arrows */}
-              <button
-                type="button"
-                className="book-turn-arrow book-turn-left"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPrevPage();
-                }}
-                disabled={!canPrev}
-                aria-label="Página anterior"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="15 18 9 12 15 6" />
-                </svg>
-              </button>
+          {/* Turn button arrows */}
+          <button
+            type="button"
+            className="book-turn-arrow book-turn-left"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPrevPage();
+            }}
+            disabled={!canPrev}
+            aria-label="Página anterior"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
 
-              <button
-                type="button"
-                className="book-turn-arrow book-turn-right"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onNextPage();
-                }}
-                disabled={!canNext}
-                aria-label="Página siguiente"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-              </button>
+          <button
+            type="button"
+            className="book-turn-arrow book-turn-right"
+            onClick={(e) => {
+              e.stopPropagation();
+              onNextPage();
+            }}
+            disabled={!canNext}
+            aria-label="Página siguiente"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+
+          {/* Loading overlay when booting */}
+          {isBooting && (
+            <div className="book-epub-loading-overlay">
+              <div className="book-loading-spinner" />
+              <p className="book-loading-text">Cargando libro...</p>
             </div>
-          ) : (
-            /* FALLBACK / DEMO STATIC SPREAD */
-            <>
-              {/* LEFT PAGE */}
-              <div
-                className={`book-page book-page-left ${canPrev ? "is-clickable" : ""}`}
-                onClick={() => canPrev && onPrevPage()}
-                role="region"
-                aria-label={`Página ${leftPage?.pageNumber || ""}`}
-              >
-                <div className="book-page-inner">
-                  {leftPage ? (
-                    <>
-                      <div className="book-running-header">
-                        <span className="book-running-title">
-                          {leftPage.runningHeaderLeft || bookTitle.toUpperCase()}
-                        </span>
-                        {bookAuthor && (
-                          <span className="book-running-author">
-                            {leftPage.runningHeaderRight || bookAuthor.toUpperCase()}
-                          </span>
-                        )}
-                      </div>
+          )}
 
-                      {leftPage.chapterTitle && (
-                        <h2 className="book-chapter-title">{leftPage.chapterTitle}</h2>
-                      )}
-
-                      <div className="book-page-body" style={pageTextStyle}>
-                        {leftPage.paragraphs.map((p, idx) => (
-                          <p key={`left-p-${idx}`} className="book-paragraph">
-                            {p}
-                          </p>
-                        ))}
-                      </div>
-
-                      <div className="book-page-footer">
-                        <span className="book-page-folio">{leftPage.pageNumber}</span>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="book-page-empty" />
-                  )}
-                </div>
-
-                {canPrev && (
-                  <button
-                    type="button"
-                    className="book-turn-arrow book-turn-left"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onPrevPage();
-                    }}
-                    aria-label="Página anterior"
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="15 18 9 12 15 6" />
-                    </svg>
-                  </button>
-                )}
+          {/* Error / retry state if EPUB failed to load */}
+          {!isBooting && !isEpubMode && (
+            <div className="book-epub-error-overlay">
+              <div className="book-epub-error-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
               </div>
-
-              {/* REALISTIC 3D SPINE CREASE */}
-              <div className="book-spine-gutter" aria-hidden="true">
-                <div className="book-spine-shadow" />
-                <div className="book-spine-stitch" />
-              </div>
-
-              {/* RIGHT PAGE */}
-              <div
-                className={`book-page book-page-right ${canNext ? "is-clickable" : ""}`}
-                onClick={() => canNext && onNextPage()}
-                role="region"
-                aria-label={`Página ${rightPage?.pageNumber || ""}`}
-              >
-                <div className="book-page-inner">
-                  {rightPage ? (
-                    <>
-                      <div className="book-running-header">
-                        <span className="book-running-title">
-                          {rightPage.runningHeaderLeft || bookTitle.toUpperCase()}
-                        </span>
-                        {bookAuthor && (
-                          <span className="book-running-author">
-                            {rightPage.runningHeaderRight || bookAuthor.toUpperCase()}
-                          </span>
-                        )}
-                      </div>
-
-                      {rightPage.chapterTitle && (
-                        <h2 className="book-chapter-title">{rightPage.chapterTitle}</h2>
-                      )}
-
-                      <div className="book-page-body" style={pageTextStyle}>
-                        {rightPage.paragraphs.map((p, idx) => (
-                          <p key={`right-p-${idx}`} className="book-paragraph">
-                            {p}
-                          </p>
-                        ))}
-                      </div>
-
-                      <div className="book-page-footer">
-                        <span className="book-page-folio">{rightPage.pageNumber}</span>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="book-page-empty" />
-                  )}
-                </div>
-
-                {canNext && (
-                  <button
-                    type="button"
-                    className="book-turn-arrow book-turn-right"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNextPage();
-                    }}
-                    aria-label="Página siguiente"
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="9 18 15 12 9 6" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            </>
+              <p className="book-epub-error-title">No se pudo cargar el libro</p>
+              <p className="book-epub-error-subtitle">
+                Hubo un inconveniente al procesar el archivo EPUB.
+              </p>
+              {onRetry && (
+                <button
+                  type="button"
+                  className="book-retry-btn"
+                  onClick={onRetry}
+                >
+                  Reintentar
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>

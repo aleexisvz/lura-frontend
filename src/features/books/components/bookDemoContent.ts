@@ -98,8 +98,8 @@ export function getBookPage(pageNumber: number, title?: string, author?: string)
     const page = DEMO_PAGES[pageNumber];
     return {
       ...page,
-      runningHeaderLeft: (title || page.runningHeaderLeft || DEMO_BOOK.title).toUpperCase(),
-      runningHeaderRight: (author || page.runningHeaderRight || DEMO_BOOK.author).toUpperCase(),
+      runningHeaderLeft: title || page.runningHeaderLeft || DEMO_BOOK.title,
+      runningHeaderRight: author || page.runningHeaderRight || DEMO_BOOK.author,
     };
   }
 
@@ -110,11 +110,11 @@ export function getBookPage(pageNumber: number, title?: string, author?: string)
     pageNumber,
     chapterId: chapter.id,
     chapterTitle: isChapterStart ? chapter.title : undefined,
-    runningHeaderLeft: (title || DEMO_BOOK.title).toUpperCase(),
-    runningHeaderRight: (author || DEMO_BOOK.author).toUpperCase(),
+    runningHeaderLeft: title || DEMO_BOOK.title,
+    runningHeaderRight: author || DEMO_BOOK.author,
     paragraphs: [
-      `Continuación del relato en la página ${pageNumber}. El camino se estrechaba entre murallas de piedra caliza esculpidas por siglos de corrientes invisibles. Cada ráfaga traía consigo fragmentos de historias pasadas y promesas de destinos aún por cumplirse.`,
-      `Observando el horizonte desde este punto del sendero, se vislumbraban las siluetas lejanas de las antiguas torres de vigilancia. La luz dorada del atardecer teñía el valle de tonos cobrizos mientras el viaje continuaba.`,
+      `El camino se estrechaba entre murallas de piedra caliza esculpidas por siglos de corrientes invisibles. Cada ráfaga traía consigo fragmentos de historias pasadas y promesas de destinos aún por cumplirse.`,
+      `Observando el horizonte desde este punto del sendero, se vislumbraban las siluetas lejanas de las antiguas torres de vigilancia. La luz dorada del atardecer teñía el valle de tonos cobrizos mientras el viaje continuaba con paso firme.`,
     ],
   };
 }

@@ -65,6 +65,7 @@ export function BookReaderWindowHeader({
       </div>
 
       <div className="book-window-right">
+        {/* Índice / Capítulos */}
         <button
           type="button"
           className="book-window-control-btn book-window-menu-btn"
@@ -72,43 +73,47 @@ export function BookReaderWindowHeader({
           title="Índice y capítulos"
           aria-label="Índice y capítulos"
         >
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="3" y1="6" x2="21" y2="6" />
             <line x1="3" y1="12" x2="21" y2="12" />
             <line x1="3" y1="18" x2="21" y2="18" />
           </svg>
         </button>
 
+        {/* Minimizar */}
         <button
           type="button"
-          className="book-window-control-btn"
+          className="book-window-control-btn book-window-minimize-btn"
           onClick={onMinimize}
           title="Minimizar vista"
           aria-label="Minimizar vista"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-            <line x1="5" y1="12" x2="19" y2="12" />
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="4" y1="15" x2="20" y2="15" />
           </svg>
         </button>
 
+        {/* Maximizar / Restaurar */}
         <button
           type="button"
-          className="book-window-control-btn"
+          className="book-window-control-btn book-window-maximize-btn"
           onClick={onToggleFullscreen}
           title={isFullscreen ? "Restaurar tamaño" : "Maximizar pantalla"}
           aria-label={isFullscreen ? "Restaurar tamaño" : "Maximizar pantalla"}
         >
           {isFullscreen ? (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="5" y="5" width="14" height="14" rx="1.5" />
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="7" y="7" width="13" height="13" rx="2" />
+              <path d="M4 17V5a2 2 0 0 1 2-2h12" />
             </svg>
           ) : (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="4" y="4" width="16" height="16" rx="2" />
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
             </svg>
           )}
         </button>
 
+        {/* Cerrar */}
         <button
           type="button"
           className="book-window-control-btn book-window-close-btn"
@@ -116,7 +121,7 @@ export function BookReaderWindowHeader({
           title="Cerrar lectura"
           aria-label="Cerrar lectura"
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
