@@ -10,27 +10,135 @@ import {
 import { ContinueReadingItem, ReadingStats, RecentSeriesResponse } from "@/types/domain";
 
 export async function getContinueReading(): Promise<ContinueReadingItem[]> {
-  const response = await apiClient.request<unknown>("/users/me/continue-reading");
-  return unwrapArray(response).map((entry) => {
-    const source = unwrapObject(entry);
-    const contentType = pickString(source, ["contentType"], "MANGA");
-    return {
-      contentType: contentType === "BOOK" ? "BOOK" : "MANGA",
-      bookId: pickString(source, ["bookId"]),
-      title: pickString(source, ["title"]),
-      chapterLabel: pickString(source, ["chapterLabel", "sectionLabel"]),
-      mangaId: pickString(source, ["mangaId", "id"]),
-      volumeId: pickString(source, ["volumeId"]),
-      pageNumber: pickNumber(source, ["pageNumber", "currentPage", "page"], 1),
-      mangaTitle: pickString(source, ["mangaTitle", "title"]),
-      volumeTitle: pickString(source, ["volumeTitle", "chapterLabel", "volumeName"], ""),
-      volumeNumber: pickNumber(source, ["volumeNumber", "chapterNumber"], 0),
-      totalPages: pickNumber(source, ["totalPages", "pagesCount", "pageCount"], 0),
-      progressPercent: pickNumber(source, ["progressPercent", "progress"], 0),
-      coverUrl: pickString(source, ["coverUrl", "volumeCoverUrl"], "") || null,
-      updatedAt: pickString(source, ["updatedAt"]),
-    };
-  });
+  let serverItems: ContinueReadingItem[] = [];
+  try {
+    const response = await apiClient.request<unknown>("/users/me/continue-reading");
+    serverItems = unwrapArray(response).map((entry) => {
+      const source = unwrapObject(entry);
+      const contentType = pickString(source, ["contentType"], "MANGA");
+      return {
+        contentType: contentType === "BOOK" ? "BOOK" : "MANGA",
+        bookId: pickString(source, ["bookId"]),
+        title: pickString(source, ["title"]),
+        chapterLabel: pickString(source, ["chapterLabel", "sectionLabel"]),
+        mangaId: pickString(source, ["mangaId", "id"]),
+        volumeId: pickString(source, ["volumeId"]),
+        pageNumber: pickNumber(source, ["pageNumber", "currentPage", "page"], 1),
+        mangaTitle: pickString(source, ["mangaTitle", "title"]),
+        volumeTitle: pickString(source, ["volumeTitle", "chapterLabel", "volumeName"], ""),
+        volumeNumber: pickNumber(source, ["volumeNumber", "chapterNumber"], 0),
+        totalPages: pickNumber(source, ["totalPages", "pagesCount", "pageCount"], 0),
+        progressPercent: pickNumber(source, ["progressPercent", "progress"], 0),
+        coverUrl: pickString(source, ["coverUrl", "volumeCoverUrl"], "") || null,
+        updatedAt: pickString(source, ["updatedAt"]),
+      };
+    });
+  } catch {}
+
+  // Merge any locally tracked book progress from localStorage for resilience
+  const existingBookIds = new Set(
+    serverItems.filter((i) => i.contentType === "BOOK" && i.bookId).map((i) => i.bookId)
+  );
+
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("lura_book_progress_")) {
+        const bookId = key.replace("lura_book_progress_", "");
+        if (bookId && !existingBookIds.has(bookId)) {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const p = JSON.parse(raw);
+            const isCompleted =
+              p &&
+              (p.completed === true ||
+                Number(p.progressPercent) >= 100 ||
+                (Number(p.totalPages) > 1 && Number(p.currentPage) >= Number(p.totalPages)));
+
+            if (p && !isCompleted && (p.progressPercent > 0 || (p.currentPage ?? 1) > 1 || p.locator)) {
+              const rawSection = p.chapterTitle
+                ? p.chapterTitle
+                : p.sectionHref
+                ? p.sectionHref.split("#")[0].split("/").pop()?.replace(/\.(x?html|xml)$/i, "").replace(/[-_]/g, " ")
+                : "Lectura en curso";
+              // Format cleaner section title if it's just raw code like "c47" -> "Capítulo 47"
+              const cleanSection = /^c(\d+)$/i.test(rawSection)
+                ? `Capítulo ${rawSection.replace(/^c/i, "")}`
+                : rawSection;
+
+              serverItems.push({
+                contentType: "BOOK",
+                bookId,
+                title: p.title || "Libro",
+                mangaTitle: p.title || "Libro",
+                chapterLabel: cleanSection || "Lectura en curso",
+                mangaId: "",
+                volumeId: "",
+                pageNumber: Number(p.currentPage) || 1,
+                totalPages: Number(p.totalPages) || 1,
+                progressPercent: Number(p.progressPercent) || 0,
+                coverUrl: p.coverUrl || null,
+                updatedAt: p.updatedAt || new Date().toISOString(),
+              });
+              existingBookIds.add(bookId);
+            }
+          }
+        }
+      }
+    }
+  } catch {}
+
+  // Self-heal any book items that lack coverUrl or title by querying /books
+  const booksNeedingEnrichment = serverItems.filter(
+    (item) =>
+      item.contentType === "BOOK" &&
+      item.bookId &&
+      (!item.coverUrl || !item.title || item.title === "Book" || item.title === "Libro")
+  );
+
+  if (booksNeedingEnrichment.length > 0) {
+    try {
+      const allBooks = await apiClient.request<unknown>("/books").catch(() => null);
+      if (allBooks) {
+        const booksList = unwrapArray(allBooks).map(unwrapObject);
+        const bookMap = new Map(
+          booksList.map((b) => [
+            pickString(b, ["id"]),
+            {
+              title: pickString(b, ["title"]),
+              coverUrl: pickString(b, ["coverUrl"]) || null,
+            },
+          ])
+        );
+
+        for (const item of booksNeedingEnrichment) {
+          if (item.bookId) {
+            const b = bookMap.get(item.bookId);
+            if (b) {
+              if (b.title) {
+                item.title = b.title;
+                item.mangaTitle = b.title;
+              }
+              if (b.coverUrl) {
+                item.coverUrl = b.coverUrl;
+              }
+              try {
+                const raw = localStorage.getItem(`lura_book_progress_${item.bookId}`);
+                if (raw) {
+                  const parsed = JSON.parse(raw);
+                  parsed.title = b.title || parsed.title;
+                  parsed.coverUrl = b.coverUrl || parsed.coverUrl;
+                  localStorage.setItem(`lura_book_progress_${item.bookId}`, JSON.stringify(parsed));
+                }
+              } catch {}
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+
+  return serverItems;
 }
 
 export async function getReadingStats(): Promise<ReadingStats> {
@@ -41,7 +149,11 @@ export async function getReadingStats(): Promise<ReadingStats> {
     totalSessions: pickNumber(source, ["totalSessions", "sessions"], 0),
     totalMinutes: pickNumber(source, ["totalMinutes", "minutes"], 0),
     totalSeconds: pickNumber(source, ["totalSeconds", "seconds"], 0),
+    mangaSeconds: pickNumber(source, ["mangaSeconds"], 0),
+    bookSeconds: pickNumber(source, ["bookSeconds"], 0),
     totalPagesRead: pickNumber(source, ["totalPagesRead", "pagesRead"], 0),
+    mangaPagesRead: pickNumber(source, ["mangaPagesRead"], 0),
+    bookPagesRead: pickNumber(source, ["bookPagesRead"], 0),
     totalVolumesRead: pickNumber(source, ["totalVolumesRead", "volumesRead"], 0),
     totalChaptersRead: pickNumber(source, ["totalChaptersRead", "chaptersRead"], 0),
     totalMangasRead: pickNumber(source, ["totalMangasRead", "mangasRead"], 0),
