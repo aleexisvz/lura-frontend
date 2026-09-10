@@ -38,6 +38,12 @@ function getReaderState(book: Book) {
   };
 }
 
+function formatSectionName(href?: string) {
+  if (!href) return "";
+  const clean = href.split("#")[0].split("/").pop() || href;
+  return clean.replace(/\.(x?html|xml)$/i, "").replace(/[-_]/g, " ");
+}
+
 export function BookDetailPage() {
   const { bookId = "" } = useParams();
 
@@ -51,9 +57,31 @@ export function BookDetailPage() {
     queryKey: ["book-progress", bookId],
     queryFn: () => getBookProgress(bookId),
     enabled: Boolean(bookId && bookQuery.data?.readerStatus === "READY"),
+    refetchOnMount: "always",
   });
 
-  const actionLabel = progressQuery.data ? "Continuar lectura" : "Empezar a leer";
+  const hasProgress = Boolean(
+    progressQuery.data &&
+      ((progressQuery.data.progressPercent ?? 0) > 0 ||
+        (progressQuery.data.currentPage ?? 1) > 1 ||
+        Boolean(progressQuery.data.locator))
+  );
+
+  const isCompleted = Boolean(
+    progressQuery.data &&
+      (progressQuery.data.completed === true ||
+        progressQuery.data.progressPercent >= 100 ||
+        (progressQuery.data.totalPages &&
+          progressQuery.data.totalPages > 1 &&
+          progressQuery.data.currentPage &&
+          progressQuery.data.currentPage >= progressQuery.data.totalPages))
+  );
+
+  const actionLabel = isCompleted
+    ? "Volver a leer"
+    : hasProgress
+    ? "Continuar leyendo"
+    : "Empezar a leer";
   const readerState = bookQuery.data ? getReaderState(bookQuery.data) : null;
   const descriptionParagraphs = (bookQuery.data?.description ?? "")
     .split(/\n{2,}/)
@@ -161,17 +189,85 @@ export function BookDetailPage() {
           </article>
 
           <article className="card book-meta-card">
-            <div className="book-meta-panel">
-              <h2>Lectura</h2>
-              {progressQuery.data ? (
-                <>
-                  <p className="book-meta-value">{progressQuery.data.progressPercent}% completado</p>
-                  <p className="muted-text">
-                    Ultima posicion guardada en <strong>{progressQuery.data.sectionHref}</strong>
-                  </p>
-                </>
+            <div className="book-meta-panel book-progress-panel">
+              <div className="book-progress-panel-header">
+                <h2>Lectura</h2>
+                {hasProgress && progressQuery.data && (
+                  <span className="book-progress-status-badge">
+                    {isCompleted ? "Completado" : "En lectura"}
+                  </span>
+                )}
+              </div>
+
+              {hasProgress && progressQuery.data ? (
+                <div className="book-progress-tracker-card">
+                  <div className="book-progress-cover-col">
+                    {bookQuery.data.coverUrl ? (
+                      <ProtectedImage
+                        path={bookQuery.data.coverUrl}
+                        alt={`Mini portada de ${bookQuery.data.title}`}
+                        className="book-progress-mini-cover"
+                      />
+                    ) : (
+                      <div className="book-progress-mini-cover placeholder">
+                        <span>Sin portada</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="book-progress-details-col">
+                    <div className="book-progress-metrics">
+                      <div className="book-progress-percent-box">
+                        <span className="book-progress-pct-number">{progressQuery.data.progressPercent}%</span>
+                        <span className="book-progress-pct-label">completado</span>
+                      </div>
+                      <div className="book-progress-page-box">
+                        <span className="book-progress-page-text">
+                          Página <strong>{progressQuery.data.currentPage ?? 1}</strong>
+                          {progressQuery.data.totalPages && progressQuery.data.totalPages > 1
+                            ? ` de ${progressQuery.data.totalPages}`
+                            : ""}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div
+                      className="book-progress-bar-track"
+                      role="progressbar"
+                      aria-valuenow={progressQuery.data.progressPercent}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                    >
+                      <div
+                        className="book-progress-bar-fill"
+                        style={{ width: `${Math.min(100, Math.max(2, progressQuery.data.progressPercent))}%` }}
+                      />
+                    </div>
+
+                    <div className="book-progress-footer-info">
+                      {progressQuery.data.sectionHref ? (
+                        <p className="book-progress-section-name">
+                          Sección: <strong>{formatSectionName(progressQuery.data.sectionHref)}</strong>
+                        </p>
+                      ) : null}
+                      {progressQuery.data.updatedAt ? (
+                        <p className="book-progress-timestamp">
+                          Última lectura: {new Date(progressQuery.data.updatedAt).toLocaleDateString("es-ES", {
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
               ) : (
-                <p className="muted-text">Todavia no hay progreso guardado para este book.</p>
+                <div className="book-progress-empty">
+                  <p className="muted-text">Todavía no hay progreso guardado para este libro.</p>
+                  <p className="book-progress-empty-hint">Haz clic en &quot;Empezar a leer&quot; para registrar tus páginas y porcentaje de lectura.</p>
+                </div>
               )}
             </div>
 

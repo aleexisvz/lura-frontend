@@ -106,6 +106,10 @@ export type ReadingStats = {
   xpMultiplier?: number;
   activeXpEvent?: string | null;
   xpPerMinute?: number;
+  mangaSeconds?: number;
+  bookSeconds?: number;
+  mangaPagesRead?: number;
+  bookPagesRead?: number;
 };
 
 export type RecentSeriesItem = {
@@ -182,5 +186,12 @@ export type BookProgress = {
   sectionHref: string;
   locator: string;
   progressPercent: number;
+  currentPage?: number;
+  totalPages?: number;
+  title?: string;
+  coverUrl?: string | null;
+  chapterTitle?: string;
+  completed?: boolean;
+  completedAt?: string | null;
   updatedAt: string;
 };

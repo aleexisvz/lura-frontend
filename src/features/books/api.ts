@@ -133,43 +133,136 @@ export async function getBookFileBlob(bookId: string) {
 }
 
 export async function getBookProgress(bookId: string): Promise<BookProgress | null> {
-  const response = await apiClient.request<unknown>(`/books/${bookId}/progress`);
-  if (!isRecord(response)) {
-    return null;
+  let localProgress: BookProgress | null = null;
+  try {
+    const raw = localStorage.getItem(`lura_book_progress_${bookId}`);
+    if (raw) {
+      localProgress = JSON.parse(raw);
+    } else {
+      const legacyCfi = localStorage.getItem(`lura_book_cfi_${bookId}`);
+      const legacyPage = localStorage.getItem(`lura_book_page_${bookId}`);
+      if (legacyCfi || legacyPage) {
+        const pageNum = Number(legacyPage) || 1;
+        localProgress = {
+          bookId,
+          spineIndex: 0,
+          sectionHref: "",
+          locator: legacyCfi || "",
+          progressPercent: 0,
+          currentPage: pageNum,
+          totalPages: 1,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+    }
+  } catch {}
+
+  try {
+    const response = await apiClient.request<unknown>(`/books/${bookId}/progress`);
+    if (isRecord(response) && response.bookId) {
+      const source = unwrapObject(response);
+      const serverProgress: BookProgress = {
+        bookId: pickString(source, ["bookId"]),
+        spineIndex: pickNumber(source, ["spineIndex"], 0),
+        sectionHref: pickString(source, ["sectionHref"]),
+        locator: pickString(source, ["locator"]),
+        progressPercent: pickNumber(source, ["progressPercent"], 0),
+        currentPage: pickNumber(source, ["currentPage"], localProgress?.currentPage ?? 1),
+        totalPages: pickNumber(source, ["totalPages"], localProgress?.totalPages ?? 1),
+        title: pickString(source, ["title"], localProgress?.title || ""),
+        coverUrl: pickString(source, ["coverUrl"], localProgress?.coverUrl || "") || null,
+        chapterTitle: pickString(source, ["chapterTitle"], localProgress?.chapterTitle || ""),
+        completed: source.completed === true || localProgress?.completed === true,
+        completedAt: pickString(source, ["completedAt"], localProgress?.completedAt || "") || null,
+        updatedAt: pickString(source, ["updatedAt"], new Date().toISOString()),
+      };
+      try {
+        localStorage.setItem(`lura_book_progress_${bookId}`, JSON.stringify(serverProgress));
+      } catch {}
+      return serverProgress;
+    }
+  } catch {
+    // Graceful fallback to local storage
   }
 
-  const source = unwrapObject(response);
-  if (!source.bookId) {
-    return null;
-  }
-
-  return {
-    bookId: pickString(source, ["bookId"]),
-    spineIndex: pickNumber(source, ["spineIndex"], 0),
-    sectionHref: pickString(source, ["sectionHref"]),
-    locator: pickString(source, ["locator"]),
-    progressPercent: pickNumber(source, ["progressPercent"], 0),
-    updatedAt: pickString(source, ["updatedAt"]),
-  };
+  return localProgress;
 }
 
 export async function saveBookProgress(
   bookId: string,
   payload: Omit<BookProgress, "bookId" | "updatedAt">
-) {
-  const response = await apiClient.request<unknown>(`/books/${bookId}/progress`, {
-    method: "PUT",
-    body: payload,
-  });
-  const source = unwrapObject(response);
-  return {
-    bookId: pickString(source, ["bookId"]),
-    spineIndex: pickNumber(source, ["spineIndex"], 0),
-    sectionHref: pickString(source, ["sectionHref"]),
-    locator: pickString(source, ["locator"]),
-    progressPercent: pickNumber(source, ["progressPercent"], 0),
-    updatedAt: pickString(source, ["updatedAt"]),
-  } satisfies BookProgress;
+): Promise<BookProgress> {
+  const existingRaw = localStorage.getItem(`lura_book_progress_${bookId}`);
+  let existing: Partial<BookProgress> = {};
+  if (existingRaw) {
+    try {
+      existing = JSON.parse(existingRaw);
+    } catch {}
+  }
+
+  const isCompleted =
+    payload.completed === true ||
+    (payload.progressPercent !== undefined && payload.progressPercent >= 100) ||
+    (typeof payload.currentPage === "number" &&
+      typeof payload.totalPages === "number" &&
+      payload.totalPages > 1 &&
+      payload.currentPage >= payload.totalPages) ||
+    existing.completed === true;
+
+  const fullProgress: BookProgress = {
+    bookId,
+    spineIndex: payload.spineIndex ?? 0,
+    sectionHref: payload.sectionHref ?? "",
+    locator: payload.locator ?? "",
+    progressPercent: payload.progressPercent ?? 0,
+    currentPage: payload.currentPage,
+    totalPages: payload.totalPages,
+    title: payload.title || existing.title || undefined,
+    coverUrl: payload.coverUrl !== undefined ? payload.coverUrl : (existing.coverUrl || null),
+    chapterTitle: payload.chapterTitle || existing.chapterTitle || undefined,
+    completed: isCompleted,
+    completedAt: isCompleted ? (existing.completedAt || new Date().toISOString()) : undefined,
+    updatedAt: new Date().toISOString(),
+  };
+
+  try {
+    localStorage.setItem(`lura_book_progress_${bookId}`, JSON.stringify(fullProgress));
+    if (payload.locator) {
+      localStorage.setItem(`lura_book_cfi_${bookId}`, payload.locator);
+    }
+    if (payload.currentPage) {
+      localStorage.setItem(`lura_book_page_${bookId}`, String(payload.currentPage));
+    }
+  } catch {}
+
+  try {
+    const response = await apiClient.request<unknown>(`/books/${bookId}/progress`, {
+      method: "PUT",
+      body: fullProgress,
+    });
+    if (isRecord(response) && response.bookId) {
+      const source = unwrapObject(response);
+      return {
+        bookId: pickString(source, ["bookId"]),
+        spineIndex: pickNumber(source, ["spineIndex"], payload.spineIndex ?? 0),
+        sectionHref: pickString(source, ["sectionHref"], payload.sectionHref ?? ""),
+        locator: pickString(source, ["locator"], payload.locator ?? ""),
+        progressPercent: pickNumber(source, ["progressPercent"], payload.progressPercent ?? 0),
+        currentPage: pickNumber(source, ["currentPage"], payload.currentPage ?? 1),
+        totalPages: pickNumber(source, ["totalPages"], payload.totalPages ?? 1),
+        title: pickString(source, ["title"], fullProgress.title || ""),
+        coverUrl: pickString(source, ["coverUrl"], fullProgress.coverUrl || "") || null,
+        chapterTitle: pickString(source, ["chapterTitle"], fullProgress.chapterTitle || ""),
+        completed: source.completed === true || fullProgress.completed === true,
+        completedAt: pickString(source, ["completedAt"], fullProgress.completedAt || "") || null,
+        updatedAt: pickString(source, ["updatedAt"], fullProgress.updatedAt),
+      };
+    }
+  } catch {
+    // Non-blocking fire-and-forget fallback
+  }
+
+  return fullProgress;
 }
 
 export async function getBookReaderPreferences() {

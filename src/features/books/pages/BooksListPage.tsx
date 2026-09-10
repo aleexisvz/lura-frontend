@@ -188,10 +188,19 @@ export function BooksListPage() {
         {filteredBooks.map((book, index) => {
           const availability = getBookAvailability(book);
           const progress = progressQueries[index]?.data;
+          const isCompleted = Boolean(
+            progress &&
+              (progress.completed === true ||
+                progress.progressPercent >= 100 ||
+                (progress.totalPages &&
+                  progress.totalPages > 1 &&
+                  progress.currentPage &&
+                  progress.currentPage >= progress.totalPages))
+          );
           const readingStatus =
             !progress || progress.progressPercent === 0
               ? "not-started"
-              : progress.progressPercent >= 95
+              : isCompleted
               ? "completed"
               : "reading";
 
