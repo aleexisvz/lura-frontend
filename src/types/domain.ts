@@ -128,6 +128,7 @@ export type Book = {
   tags: Tag[];
   categories: string[];
   coverUrl: string | null;
+  epubUrl?: string | null;
   hasEpub?: boolean;
   language?: string | null;
   readingDirection?: "DEFAULT" | "LTR" | "RTL";
