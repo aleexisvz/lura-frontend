@@ -40,7 +40,8 @@ function adaptBook(value: unknown): Book {
   const source = unwrapObject(value);
   const tags = adaptTags(source);
   const categories = pickStringArray(source, ["categories"]);
-  const readerStatus = pickString(source, ["readerStatus"], "PROCESSING");
+  const rawStatus = pickString(source, ["readerStatus"]);
+  const readerStatus = rawStatus === "FAILED" ? "FAILED" : "READY";
 
   return {
     id: pickString(source, ["id", "bookId"]),
@@ -53,8 +54,7 @@ function adaptBook(value: unknown): Book {
     hasEpub: source.hasEpub === true,
     language: pickString(source, ["language"]) || null,
     readingDirection: pickString(source, ["readingDirection"], "DEFAULT") as Book["readingDirection"],
-    readerStatus:
-      readerStatus === "READY" || readerStatus === "FAILED" ? readerStatus : "PROCESSING",
+    readerStatus: readerStatus as Book["readerStatus"],
     processingError: pickString(source, ["processingError"]) || null,
   };
 }
