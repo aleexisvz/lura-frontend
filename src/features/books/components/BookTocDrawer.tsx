@@ -1,11 +1,17 @@
-import { BookChapter } from "./bookDemoContent";
+export type TocChapterItem = {
+  id: string;
+  title: string;
+  href?: string;
+  startPage?: number;
+};
 
 type BookTocDrawerProps = {
   isOpen: boolean;
   onClose: () => void;
-  chapters: BookChapter[];
+  chapters: TocChapterItem[];
   currentPage: number;
-  onSelectChapter: (startPage: number) => void;
+  currentSectionHref?: string;
+  onSelectChapter: (target: string | number) => void;
   bookTitle: string;
 };
 
@@ -14,6 +20,7 @@ export function BookTocDrawer({
   onClose,
   chapters,
   currentPage,
+  currentSectionHref,
   onSelectChapter,
   bookTitle,
 }: BookTocDrawerProps) {
@@ -42,10 +49,16 @@ export function BookTocDrawer({
 
         <div className="book-toc-list">
           {chapters.map((chapter) => {
-            // Check if current page is within this chapter
             const isCurrent =
-              currentPage >= chapter.startPage &&
-              (!chapters.some((c) => c.startPage > chapter.startPage && currentPage >= c.startPage));
+              (chapter.href && currentSectionHref && chapter.href.includes(currentSectionHref)) ||
+              (typeof chapter.startPage === "number" &&
+                currentPage >= chapter.startPage &&
+                (!chapters.some(
+                  (c) =>
+                    typeof c.startPage === "number" &&
+                    c.startPage > (chapter.startPage ?? 0) &&
+                    currentPage >= c.startPage
+                )));
 
             return (
               <button
@@ -53,12 +66,14 @@ export function BookTocDrawer({
                 type="button"
                 className={`book-toc-item ${isCurrent ? "is-active" : ""}`}
                 onClick={() => {
-                  onSelectChapter(chapter.startPage);
+                  onSelectChapter(chapter.href ?? chapter.startPage ?? 1);
                   onClose();
                 }}
               >
                 <span className="book-toc-item-title">{chapter.title}</span>
-                <span className="book-toc-item-page">pág. {chapter.startPage}</span>
+                {typeof chapter.startPage === "number" && (
+                  <span className="book-toc-item-page">pág. {chapter.startPage}</span>
+                )}
               </button>
             );
           })}
