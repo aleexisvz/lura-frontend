@@ -356,51 +356,65 @@ export function BookReaderPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // --- SESSION TRACKING ---
-  const hasStartedRef = useRef<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const sessionEndRequestedRef = useRef(false);
-  const startPromiseRef = useRef<Promise<string | null> | null>(null);
+  const hasStartedRef = useRef<string | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
 
   useEffect(() => {
     if (!bookId) return;
     if (hasStartedRef.current === bookId) return;
     hasStartedRef.current = bookId;
 
-    const promise = startBookReadingSession(bookId)
+    startBookReadingSession(bookId)
       .then((id) => {
-        if (id) {
-          sessionIdRef.current = id;
-          return id;
+        if (!id) return null;
+        sessionIdRef.current = id;
+        setSessionId(id);
+        // If the component already unmounted before the start request resolved
+        if (!isMountedRef.current || sessionEndRequestedRef.current) {
+          sessionEndRequestedRef.current = true;
+          endReadingSessionKeepalive(id);
         }
-        return null;
+        return id;
       })
       .catch(() => null);
-
-    startPromiseRef.current = promise;
   }, [bookId]);
 
   const endSessionIfNeeded = useCallback((preferKeepalive = false) => {
-    if (sessionEndRequestedRef.current) return;
+    const activeSessionId = sessionIdRef.current;
+    if (!activeSessionId || sessionEndRequestedRef.current) {
+      return;
+    }
     sessionEndRequestedRef.current = true;
 
-    const terminate = (id: string) => {
-      if (preferKeepalive) {
-        endReadingSessionKeepalive(id);
-      } else {
-        void endReadingSession(id).catch(() => {});
-      }
-    };
-
-    const activeSessionId = sessionIdRef.current;
-    if (activeSessionId) {
-      terminate(activeSessionId);
-    } else if (startPromiseRef.current) {
-      startPromiseRef.current.then((id) => {
-        if (id) terminate(id);
-      });
+    if (preferKeepalive) {
+      endReadingSessionKeepalive(activeSessionId);
+      return;
     }
+    void endReadingSession(activeSessionId).catch(() => {});
   }, []);
 
+  // Terminate session when reader unmounts (e.g. navigation / closing reader)
+  useEffect(() => {
+    return () => {
+      endSessionIfNeeded(false);
+    };
+  }, [endSessionIfNeeded]);
+
+  // Window unload and pagehide listeners
   useEffect(() => {
     const handlePageHide = () => {
       endSessionIfNeeded(true);
@@ -412,7 +426,6 @@ export function BookReaderPage() {
     return () => {
       window.removeEventListener("pagehide", handlePageHide);
       window.removeEventListener("beforeunload", handlePageHide);
-      endSessionIfNeeded(false);
     };
   }, [endSessionIfNeeded]);
 
