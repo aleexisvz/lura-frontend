@@ -21,6 +21,7 @@ import {
 } from "../components/BookBookmarksModal";
 import { BookNotesModal, BookNote } from "../components/BookNotesModal";
 import { BookTocDrawer, TocChapterItem } from "../components/BookTocDrawer";
+import { applyEpubPagingFix } from "../utils/epubPagingFix";
 
 const PREFS_STORAGE_KEY = "lura_book_reader_preferences";
 const epubBufferCache = new Map<string, ArrayBuffer>();
@@ -208,8 +209,30 @@ export function BookReaderPage() {
     return 1;
   });
 
-  const [totalPages, setTotalPages] = useState<number>(1);
-  const [progressPercent, setProgressPercent] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(() => {
+    try {
+      const rawFull = localStorage.getItem(`lura_book_progress_${bookId || "demo"}`);
+      if (rawFull) {
+        const parsedObj = JSON.parse(rawFull);
+        if (typeof parsedObj.totalPages === "number" && parsedObj.totalPages > 1) {
+          return parsedObj.totalPages;
+        }
+      }
+    } catch {}
+    return 1;
+  });
+  const [progressPercent, setProgressPercent] = useState<number>(() => {
+    try {
+      const rawFull = localStorage.getItem(`lura_book_progress_${bookId || "demo"}`);
+      if (rawFull) {
+        const parsedObj = JSON.parse(rawFull);
+        if (typeof parsedObj.progressPercent === "number") {
+          return Math.min(100, Math.max(0, parsedObj.progressPercent));
+        }
+      }
+    } catch {}
+    return 0;
+  });
   const [currentSectionHref, setCurrentSectionHref] = useState<string>("");
   const [chapters, setChapters] = useState<TocChapterItem[]>([]);
   const [isEpubMode, setIsEpubMode] = useState<boolean>(false);
@@ -455,6 +478,7 @@ export function BookReaderPage() {
   // --- LOAD REAL EPUB ENGINE ---
   useEffect(() => {
     let cancelled = false;
+    let cleanupPagingFix: (() => void) | null = null;
 
     async function initEpub() {
       if (!viewportRef.current) return;
@@ -507,6 +531,21 @@ export function BookReaderPage() {
         const bookEngine = ePubFactory(arrayBuffer);
         bookEngineRef.current = bookEngine;
 
+        // Try loading cached locations immediately for instant 0ms locationsReady
+        const locationsCacheKey = bookId ? `lura_book_locations_${bookId}` : null;
+        if (locationsCacheKey) {
+          try {
+            const cachedLocations = localStorage.getItem(locationsCacheKey);
+            if (cachedLocations) {
+              bookEngine.locations.load(cachedLocations);
+              if (bookEngine.locations.total > 0) {
+                locationsReadyRef.current = true;
+                setTotalPages(bookEngine.locations.total);
+              }
+            }
+          } catch {}
+        }
+
         // Render paginated spread: two entire facing pages side-by-side with 60px center gap
         const rendition = bookEngine.renderTo(viewportRef.current, {
           width: "100%",
@@ -517,6 +556,7 @@ export function BookReaderPage() {
           gap: 60,
         });
         renditionRef.current = rendition;
+        cleanupPagingFix = applyEpubPagingFix(rendition);
 
         applyEpubTheme(rendition, theme, fontFamily, fontSize);
 
@@ -531,31 +571,37 @@ export function BookReaderPage() {
         rendition.on("relocated", (location: any) => {
           if (cancelled) return;
           const cfi = location?.start?.cfi || "";
-          const displayedPage = Number(location?.start?.displayed?.page || 1);
-          const displayedTotal = Number(location?.start?.displayed?.total || 1);
           const href = location?.start?.href || "";
 
           setCurrentSectionHref(href);
 
           let pct = 0;
-          let calculatedPage = displayedPage;
-          let calculatedTotal = displayedTotal;
+          let calculatedPage = currentPage;
+          let calculatedTotal = totalPages;
 
-          if (locationsReadyRef.current && cfi && bookEngine.locations) {
-            try {
-              pct = Math.round(bookEngine.locations.percentageFromCfi(cfi) * 100);
-              const loc = bookEngine.locations.locationFromCfi(cfi);
-              if (typeof loc === "number" && loc >= 0) {
-                calculatedPage = loc + 1;
+          if (locationsReadyRef.current && bookEngine.locations && bookEngine.locations.total > 0) {
+            calculatedTotal = bookEngine.locations.total;
+            if (cfi) {
+              try {
+                const cfiPct = bookEngine.locations.percentageFromCfi(cfi);
+                const loc = bookEngine.locations.locationFromCfi(cfi);
+
+                if (typeof loc === "number" && loc >= 0) {
+                  calculatedPage = loc + 1;
+                } else if (typeof cfiPct === "number" && cfiPct > 0) {
+                  calculatedPage = Math.max(1, Math.min(calculatedTotal, Math.round(cfiPct * calculatedTotal)));
+                }
+
+                pct = Math.min(100, Math.max(0, Math.round(((calculatedPage - 1) / Math.max(1, calculatedTotal - 1)) * 100)));
+              } catch {
+                pct = Math.min(100, Math.max(0, Math.round((calculatedPage / calculatedTotal) * 100)));
               }
-              if (typeof bookEngine.locations.total === "number" && bookEngine.locations.total > 0) {
-                calculatedTotal = bookEngine.locations.total;
-              }
-            } catch {
-              pct = displayedTotal > 1 ? Math.round((displayedPage / displayedTotal) * 100) : 0;
             }
-          } else if (displayedTotal > 1) {
-            pct = Math.round((displayedPage / displayedTotal) * 100);
+          } else {
+            // Locations not ready yet: preserve existing totalPages (never use chapter page count)
+            if (calculatedTotal > 1 && calculatedPage >= 1) {
+              pct = Math.min(100, Math.max(0, Math.round(((calculatedPage - 1) / Math.max(1, calculatedTotal - 1)) * 100)));
+            }
           }
 
           setCurrentPage(calculatedPage);
@@ -570,9 +616,10 @@ export function BookReaderPage() {
             localStorage.setItem(progressStorageKey, String(calculatedPage));
           } catch {}
 
-          if (bookId) {
+          // ONLY save progress if locations are ready OR if calculatedTotal is a valid full book count (> 50)
+          if (bookId && (locationsReadyRef.current || calculatedTotal > 50)) {
             const matchedChapter = chapters.find((c) => href && c.href && href.includes(c.href));
-            const isFinished = location?.atEnd === true || finalPct >= 100 || (calculatedTotal > 1 && calculatedPage >= calculatedTotal);
+            const isFinished = location?.atEnd === true || finalPct >= 100 || (calculatedTotal > 1 && calculatedPage >= calculatedTotal && finalPct >= 95);
             saveBookProgress(bookId, {
               spineIndex: 0,
               sectionHref: href,
@@ -634,65 +681,63 @@ export function BookReaderPage() {
         if (!cancelled) {
           setIsEpubMode(true);
           setIsReaderBooting(false);
-          if (bookId) {
-            const matchedChapter = tocItems.find((c) => currentSectionHref && c.href && currentSectionHref.includes(c.href));
-            const isFinished = progressPercent >= 100 || (totalPages > 1 && currentPage >= totalPages);
-            saveBookProgress(bookId, {
-              spineIndex: 0,
-              sectionHref: currentSectionHref,
-              locator: savedCfi || "",
-              progressPercent: progressPercent,
-              currentPage: currentPage,
-              totalPages: totalPages,
-              title: book.title || bookQuery.data?.title,
-              coverUrl: book.coverUrl || bookQuery.data?.coverUrl,
-              chapterTitle: matchedChapter?.title,
-              completed: isFinished,
-            }).catch(() => {});
-          }
         }
 
-        // Generate locations for accurate total pages and page jumping
-        void bookEngine.locations
-          .generate(1024)
-          .then(() => {
-            if (cancelled) return;
-            locationsReadyRef.current = true;
-            const total = bookEngine.locations.total;
-            if (typeof total === "number" && total > 0) {
-              setTotalPages(total);
-              const currentLocation = rendition.currentLocation?.() || renditionRef.current?.location;
-              const currentCfi = currentLocation?.start?.cfi;
-              if (currentCfi) {
-                try {
-                  const updatedPct = Math.min(100, Math.max(0, Math.round(bookEngine.locations.percentageFromCfi(currentCfi) * 100)));
-                  const loc = bookEngine.locations.locationFromCfi(currentCfi);
-                  const updatedPage = typeof loc === "number" && loc >= 0 ? loc + 1 : currentPage;
-                  setProgressPercent(updatedPct);
-                  setCurrentPage(updatedPage);
-                  if (bookId) {
-                    const matchedChapter = tocItems.find((c) => currentSectionHref && c.href && currentSectionHref.includes(c.href));
-                    const isFinished = updatedPct >= 100 || (total > 1 && updatedPage >= total);
-                    saveBookProgress(bookId, {
-                      spineIndex: 0,
-                      sectionHref: currentSectionHref,
-                      locator: currentCfi,
-                      progressPercent: updatedPct,
-                      currentPage: updatedPage,
-                      totalPages: total,
-                      title: book.title || bookQuery.data?.title,
-                      coverUrl: book.coverUrl || bookQuery.data?.coverUrl,
-                      chapterTitle: matchedChapter?.title,
-                      completed: isFinished,
-                    }).catch(() => {});
-                  }
-                } catch {}
+        // Generate locations if not already cached
+        const shouldGenerate = !locationsReadyRef.current || !locationsCacheKey || !localStorage.getItem(locationsCacheKey);
+        if (shouldGenerate) {
+          void bookEngine.locations
+            .generate(1024)
+            .then(() => {
+              if (cancelled) return;
+              locationsReadyRef.current = true;
+              const total = bookEngine.locations.total;
+              if (typeof total === "number" && total > 0) {
+                setTotalPages(total);
+                if (locationsCacheKey) {
+                  try {
+                    localStorage.setItem(locationsCacheKey, bookEngine.locations.save());
+                  } catch {}
+                }
+                const currentLocation = rendition.currentLocation?.() || renditionRef.current?.location;
+                const currentCfi = currentLocation?.start?.cfi;
+                if (currentCfi) {
+                  try {
+                    const cfiPct = bookEngine.locations.percentageFromCfi(currentCfi);
+                    const loc = bookEngine.locations.locationFromCfi(currentCfi);
+                    let updatedPage = currentPage;
+                    if (typeof loc === "number" && loc >= 0) {
+                      updatedPage = loc + 1;
+                    } else if (typeof cfiPct === "number" && cfiPct > 0) {
+                      updatedPage = Math.max(1, Math.min(total, Math.round(cfiPct * total)));
+                    }
+                    const updatedPct = Math.min(100, Math.max(0, Math.round(((updatedPage - 1) / Math.max(1, total - 1)) * 100)));
+                    setProgressPercent(updatedPct);
+                    setCurrentPage(updatedPage);
+                    if (bookId) {
+                      const matchedChapter = tocItems.find((c) => currentSectionHref && c.href && currentSectionHref.includes(c.href));
+                      const isFinished = updatedPct >= 100 || (total > 1 && updatedPage >= total && updatedPct >= 95);
+                      saveBookProgress(bookId, {
+                        spineIndex: 0,
+                        sectionHref: currentSectionHref,
+                        locator: currentCfi,
+                        progressPercent: updatedPct,
+                        currentPage: updatedPage,
+                        totalPages: total,
+                        title: book.title || bookQuery.data?.title,
+                        coverUrl: book.coverUrl || bookQuery.data?.coverUrl,
+                        chapterTitle: matchedChapter?.title,
+                        completed: isFinished,
+                      }).catch(() => {});
+                    }
+                  } catch {}
+                }
               }
-            }
-          })
-          .catch(() => {
-            locationsReadyRef.current = false;
-          });
+            })
+            .catch(() => {
+              locationsReadyRef.current = false;
+            });
+        }
       } catch (err) {
         console.error("Error loading EPUB:", err);
         if (!cancelled) {
@@ -707,6 +752,7 @@ export function BookReaderPage() {
     return () => {
       cancelled = true;
       try {
+        cleanupPagingFix?.();
         renditionRef.current?.destroy?.();
         bookEngineRef.current?.destroy?.();
       } catch {}
@@ -719,7 +765,15 @@ export function BookReaderPage() {
   const canPrev = currentPage > 1;
   const canNext = currentPage < totalPages;
 
+  const isNavigatingRef = useRef(false);
+
   const handlePrevPage = useCallback(() => {
+    if (isNavigatingRef.current) return;
+    isNavigatingRef.current = true;
+    setTimeout(() => {
+      isNavigatingRef.current = false;
+    }, 180);
+
     if (isEpubMode && renditionRef.current) {
       renditionRef.current.prev?.();
     } else {
@@ -728,6 +782,12 @@ export function BookReaderPage() {
   }, [isEpubMode]);
 
   const handleNextPage = useCallback(() => {
+    if (isNavigatingRef.current) return;
+    isNavigatingRef.current = true;
+    setTimeout(() => {
+      isNavigatingRef.current = false;
+    }, 180);
+
     if (isEpubMode && renditionRef.current) {
       renditionRef.current.next?.();
     } else {
