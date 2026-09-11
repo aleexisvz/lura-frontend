@@ -200,23 +200,45 @@ export async function saveBookProgress(
     } catch {}
   }
 
+  const rawTotal = payload.totalPages;
+  const existingTotal =
+    typeof existing.totalPages === "number" && existing.totalPages > 1
+      ? existing.totalPages
+      : undefined;
+
+  // Protect against downgrading a valid book total (e.g. 835) with a transient chapter count (e.g. 15)
+  const effectiveTotalPages =
+    typeof rawTotal === "number" && rawTotal > 1
+      ? existingTotal && existingTotal > rawTotal
+        ? existingTotal
+        : rawTotal
+      : existingTotal;
+
+  const currentP =
+    typeof payload.currentPage === "number" && payload.currentPage >= 1
+      ? payload.currentPage
+      : (existing.currentPage ?? 1);
+  const pct =
+    payload.progressPercent !== undefined
+      ? Math.min(100, Math.max(0, payload.progressPercent))
+      : (existing.progressPercent ?? 0);
+
   const isCompleted =
     payload.completed === true ||
-    (payload.progressPercent !== undefined && payload.progressPercent >= 100) ||
-    (typeof payload.currentPage === "number" &&
-      typeof payload.totalPages === "number" &&
-      payload.totalPages > 1 &&
-      payload.currentPage >= payload.totalPages) ||
-    existing.completed === true;
+    pct >= 100 ||
+    (typeof effectiveTotalPages === "number" &&
+      effectiveTotalPages > 1 &&
+      currentP >= effectiveTotalPages &&
+      pct >= 95);
 
   const fullProgress: BookProgress = {
     bookId,
     spineIndex: payload.spineIndex ?? 0,
     sectionHref: payload.sectionHref ?? "",
     locator: payload.locator ?? "",
-    progressPercent: payload.progressPercent ?? 0,
-    currentPage: payload.currentPage,
-    totalPages: payload.totalPages,
+    progressPercent: pct,
+    currentPage: currentP,
+    totalPages: effectiveTotalPages,
     title: payload.title || existing.title || undefined,
     coverUrl: payload.coverUrl !== undefined ? payload.coverUrl : (existing.coverUrl || null),
     chapterTitle: payload.chapterTitle || existing.chapterTitle || undefined,
