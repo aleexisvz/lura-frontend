@@ -82,7 +82,15 @@ function VolumePosterCard({
         {!isCompleted && !isInProgress && pagesCount}
       </span>
 
-      <div className="volume-hover-layer">
+      <div
+        className={`volume-hover-layer${
+          isCompleted
+            ? " is-completed"
+            : isInProgress
+            ? " is-reading"
+            : ""
+        }`}
+      >
         <p className="volume-hover-title">{volumeTitle}</p>
       </div>
     </Link>
@@ -166,6 +174,53 @@ export function MangaDetailPage() {
     });
     return source;
   }, [volumesQuery.data, volumeOrder]);
+
+  const continueButtonInfo = useMemo(() => {
+    const progress = progressQuery.data;
+    const volumes = volumesQuery.data ?? [];
+    if (!progress?.volumeId || volumes.length === 0) {
+      return null;
+    }
+
+    const sortedVolumes = [...volumes].sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
+    const currentVolumeIndex = sortedVolumes.findIndex((v) => v.id === progress.volumeId);
+    if (currentVolumeIndex === -1) {
+      return {
+        to: `/reader/${mangaId}/${progress.volumeId}/${progress.pageNumber}`,
+        label: `Continuar desde pagina ${progress.pageNumber}`,
+      };
+    }
+
+    const currentVolume = sortedVolumes[currentVolumeIndex];
+    const isCurrentVolumeCompleted = Boolean(
+      completionMap[currentVolume.id] ||
+      progress.volumeCompleted ||
+      (currentVolume.pagesCount && currentVolume.pagesCount > 0 && progress.pageNumber >= currentVolume.pagesCount)
+    );
+
+    if (isCurrentVolumeCompleted) {
+      const nextVolume = sortedVolumes[currentVolumeIndex + 1];
+      if (nextVolume) {
+        const nextVolumeNumber = nextVolume.number > 0 ? nextVolume.number : nextVolume.title;
+        const targetPage = inProgressPageByVolumeId.get(nextVolume.id) ?? 1;
+        return {
+          to: `/reader/${mangaId}/${nextVolume.id}/${targetPage}`,
+          label: `Continuar Volúmen ${nextVolumeNumber}`,
+        };
+      }
+
+      const firstVolume = sortedVolumes[0];
+      return {
+        to: `/reader/${mangaId}/${firstVolume.id}/1`,
+        label: "Volver a leer",
+      };
+    }
+
+    return {
+      to: `/reader/${mangaId}/${currentVolume.id}/${progress.pageNumber}`,
+      label: `Continuar desde pagina ${progress.pageNumber}`,
+    };
+  }, [progressQuery.data, volumesQuery.data, completionMap, mangaId, inProgressPageByVolumeId]);
 
   const UserIcon = () => (
     <svg
@@ -293,12 +348,12 @@ export function MangaDetailPage() {
                 </div>
               )}
 
-              {progressQuery.data?.volumeId && (
+              {continueButtonInfo && (
                 <Link
                   className="manga-continue-link"
-                  to={`/reader/${mangaId}/${progressQuery.data.volumeId}/${progressQuery.data.pageNumber}`}
+                  to={continueButtonInfo.to}
                 >
-                  Continuar desde pagina {progressQuery.data.pageNumber}
+                  {continueButtonInfo.label}
                 </Link>
               )}
             </div>
@@ -325,16 +380,31 @@ export function MangaDetailPage() {
         {volumesQuery.isError && <ErrorBox error={volumesQuery.error} />}
 
         <div className="volume-poster-grid">
-          {orderedVolumes.map((volume: Volume) => (
-            <VolumePosterCard
-              key={volume.id}
-              mangaId={mangaId}
-              volume={volume}
-              inProgressPage={inProgressPageByVolumeId.get(volume.id) ?? null}
-              isInProgress={inProgressPageByVolumeId.has(volume.id) && !(completionMap[volume.id] ?? false)}
-              isCompleted={completionMap[volume.id] ?? false}
-            />
-          ))}
+          {orderedVolumes.map((volume: Volume) => {
+            const isCompleted = Boolean(
+              completionMap[volume.id] ||
+              (progressQuery.data?.volumeId === volume.id &&
+                (progressQuery.data.volumeCompleted ||
+                  (volume.pagesCount !== undefined &&
+                    volume.pagesCount > 0 &&
+                    progressQuery.data.pageNumber >= volume.pagesCount)))
+            );
+            const isInProgress =
+              !isCompleted &&
+              (inProgressPageByVolumeId.has(volume.id) ||
+                progressQuery.data?.volumeId === volume.id);
+
+            return (
+              <VolumePosterCard
+                key={volume.id}
+                mangaId={mangaId}
+                volume={volume}
+                inProgressPage={inProgressPageByVolumeId.get(volume.id) ?? null}
+                isInProgress={isInProgress}
+                isCompleted={isCompleted}
+              />
+            );
+          })}
         </div>
       </article>
     </section>
