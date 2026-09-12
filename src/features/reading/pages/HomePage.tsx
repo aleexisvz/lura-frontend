@@ -160,8 +160,10 @@ export function HomePage() {
     );
   }, [updatesQuery.data, selectedTag]);
 
-  // Rankings
-  const rankings = rankingsQuery.data ?? [];
+  // Rankings (limited to 5)
+  const rankings = useMemo(() => {
+    return (rankingsQuery.data ?? []).slice(0, 5);
+  }, [rankingsQuery.data]);
   // Active Continue Reading item
   const latestContinue = continueQuery.data?.[0];
 

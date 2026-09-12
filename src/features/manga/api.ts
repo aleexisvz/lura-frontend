@@ -142,6 +142,7 @@ export async function getProgress(mangaId: string): Promise<MangaProgress | null
     volumeId: pickString(source, ["volumeId"], ""),
     pageNumber: pickNumber(source, ["pageNumber", "currentPage", "page"], 1),
     completed: source.completed === true,
+    volumeCompleted: source.volumeCompleted === true,
   };
 }
 

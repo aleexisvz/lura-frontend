@@ -2212,12 +2212,14 @@ button.mp-hero-dot.active,
 }
 
 .manga-hover-layer.is-reading,
-.book-hover-layer.is-reading {
+.book-hover-layer.is-reading,
+.volume-hover-layer.is-reading {
   border-bottom: 3px solid var(--accent-gold);
 }
 
 .manga-hover-layer.is-completed,
-.book-hover-layer.is-completed {
+.book-hover-layer.is-completed,
+.volume-hover-layer.is-completed {
   border-bottom: 3px solid var(--success);
 }
 
@@ -2552,9 +2554,9 @@ button.mp-hero-dot.active,
 }
 
 .volume-pages-badge--completed {
-  color: var(--success);
-  border-color: var(--success-border);
-  background: rgba(16, 185, 129, 0.15);
+  color: #ffffff;
+  border-color: var(--success);
+  background: var(--success);
 }
 
 .volume-pages-badge--reading {
