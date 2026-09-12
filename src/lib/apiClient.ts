@@ -29,15 +29,22 @@ class ApiClient {
     this.unauthorizedHandler = handler;
   }
 
+  /**
+   * Centralized HTTP request method supporting JSON and FormData payloads,
+   * automatic Bearer token injection, and unified error mapping.
+   */
   async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
     const { auth = true, body, headers, ...rest } = options;
     const token = getToken();
     const finalHeaders = new Headers(headers);
 
+    // Automatically attach Bearer JWT if the request requires authentication
     if (auth && token) {
       finalHeaders.set("Authorization", `Bearer ${token}`);
     }
 
+    // Do NOT set Content-Type for FormData: the browser will automatically
+    // append multipart/form-data with the required boundary parameter.
     const isFormData = body instanceof FormData;
     if (body && !isFormData) {
       finalHeaders.set("Content-Type", "application/json");
@@ -54,6 +61,7 @@ class ApiClient {
         : undefined
     });
 
+    // Notify auth context on 401 to clear local session and trigger login redirect
     if (response.status === 401 && this.unauthorizedHandler) {
       this.unauthorizedHandler();
     }
@@ -62,6 +70,7 @@ class ApiClient {
       throw new ApiError(await this.parseError(response), response.status);
     }
 
+    // Return undefined for HTTP 204 No Content responses to avoid JSON parsing errors
     if (response.status === 204) {
       return undefined as T;
     }

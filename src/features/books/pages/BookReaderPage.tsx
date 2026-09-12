@@ -546,7 +546,8 @@ export function BookReaderPage() {
           } catch {}
         }
 
-        // Render paginated spread: two entire facing pages side-by-side with 60px center gap
+        // Configure epub.js rendition in dual-page spread mode.
+        // On viewports >= 700px, two facing pages are rendered side-by-side with a 60px gutter.
         const rendition = bookEngine.renderTo(viewportRef.current, {
           width: "100%",
           height: "100%",
@@ -556,8 +557,14 @@ export function BookReaderPage() {
           gap: 60,
         });
         renditionRef.current = rendition;
+
+        // Attach monkey patches to epub.js DefaultViewManager to resolve:
+        // 1. Dropped last half-spread on odd page counts.
+        // 2. Misaligned backward scrolling.
+        // 3. Unhandled task rejection queue deadlocks.
         cleanupPagingFix = applyEpubPagingFix(rendition);
 
+        // Inject active palette, typography, line-height, and paragraph indent rules into iframe
         applyEpubTheme(rendition, theme, fontFamily, fontSize);
 
         rendition.on("keyup", (e: any) => {
