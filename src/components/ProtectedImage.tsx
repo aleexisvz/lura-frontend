@@ -11,8 +11,11 @@ type ProtectedImageProps = {
 export function ProtectedImage({ path, alt, className }: ProtectedImageProps) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
 
+  // Detect Cloudflare R2 public CDN URLs (starting with http:// or https://).
+  // If absolute, bypass the API query entirely and render directly via native <img>.
   const isAbsoluteUrl = path?.startsWith("http://") || path?.startsWith("https://");
 
+  // Fallback query for legacy protected relative paths requiring authenticated blob streaming
   const imageQuery = useQuery({
     queryKey: ["protected-image", path],
     queryFn: () => apiClient.fetchBlob(path),

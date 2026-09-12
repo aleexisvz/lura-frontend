@@ -50,7 +50,8 @@ export function MangaReaderPage() {
   const preloadUrls = useMemo(() => {
     if (!pagesQuery.data) return [];
     
-    // Precargar 3 páginas hacia adelante y 1 hacia atrás
+    // Prefetch 3 pages ahead and 1 page behind using hidden <img> elements.
+    // This primes the browser HTTP cache for instantaneous page transitions.
     const urls: string[] = [];
     const targetPages = [currentPage - 1, currentPage + 1, currentPage + 2, currentPage + 3];
     
@@ -123,6 +124,10 @@ export function MangaReaderPage() {
     sessionIdRef.current = sessionId;
   }, [sessionId]);
 
+  /**
+   * Finalizes the reading session. Uses fetch with { keepalive: true }
+   * during page unmount / window close so the request is reliably delivered.
+   */
   const endSessionIfNeeded = useCallback((preferKeepalive = false) => {
     const activeSessionId = sessionIdRef.current;
     if (!activeSessionId || sessionEndRequestedRef.current) {
@@ -134,16 +139,20 @@ export function MangaReaderPage() {
       return;
     }
     void endReadingSession(activeSessionId).catch(() => {
-      // avoid surfacing cleanup errors to UI
+      // Best-effort cleanup: avoid surfacing network abort errors to UI
     });
   }, []);
 
+  /**
+   * Automatically ends the reading session when the user has been AFK/idle
+   * to avoid inflating reading duration and XP calculations.
+   */
   const onAfkExpired = useCallback(() => {
     const activeSessionId = sessionIdRef.current;
     if (activeSessionId && !sessionEndRequestedRef.current) {
       sessionEndRequestedRef.current = true;
       void endReadingSession(activeSessionId).catch(() => {
-        // best-effort: AFK session end
+        // Best-effort: AFK session termination
       });
       setSessionId(null);
       sessionIdRef.current = null;
