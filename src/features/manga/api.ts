@@ -7,7 +7,7 @@ import {
   unwrapArray,
   unwrapObject,
 } from "@/lib/adapters";
-import { Manga, MangaPage, MangaProgress, Tag, Volume } from "@/types/domain";
+import { Manga, MangaPage, MangaProgress, RecentReader, Tag, Volume } from "@/types/domain";
 
 function adaptTags(source: Record<string, unknown>) {
   const tagsValue = source.tags;
@@ -266,5 +266,21 @@ export async function uploadVolumeCover(payload: {
   return apiClient.request(`/manga/${payload.mangaId}/volumes/${payload.volumeId}/upload-cover`, {
     method: "POST",
     body: formData,
+  });
+}
+
+export async function getMangaReaders(mangaId: string): Promise<RecentReader[]> {
+  const response = await apiClient.request<unknown>(`/manga/${mangaId}/readers`);
+  return unwrapArray(response).map((item) => {
+    const source = unwrapObject(item);
+    const profileImageUrl = pickString(source, ["profileImageUrl"], "");
+    return {
+      id: pickString(source, ["id"]),
+      username: pickString(source, ["username"]),
+      profileImageUrl: profileImageUrl || null,
+      readingLevel: Math.max(1, pickNumber(source, ["readingLevel"], 1)),
+      readingXpTotal: Math.max(0, pickNumber(source, ["readingXpTotal"], 0)),
+      lastReadAt: pickString(source, ["lastReadAt"], ""),
+    };
   });
 }

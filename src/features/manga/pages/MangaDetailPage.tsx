@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { getMangaById, getProgress, getVolumeCompletion, getVolumes } from "@/features/manga/api";
+import { getMangaById, getMangaReaders, getProgress, getVolumeCompletion, getVolumes } from "@/features/manga/api";
 import { getContinueReading } from "@/features/reading/api";
 import { ErrorBox } from "@/components/ErrorBox";
 import { Loading } from "@/components/Loading";
@@ -122,6 +122,12 @@ export function MangaDetailPage() {
   const continueReadingQuery = useQuery({
     queryKey: ["continue-reading"],
     queryFn: getContinueReading,
+  });
+
+  const readersQuery = useQuery({
+    queryKey: ["manga-readers", mangaId],
+    queryFn: () => getMangaReaders(mangaId),
+    enabled: Boolean(mangaId),
   });
 
   const completionQueries = useQueries({
@@ -406,6 +412,65 @@ export function MangaDetailPage() {
             );
           })}
         </div>
+      </article>
+
+      <article className="card content-readers-card">
+        <h2 className="content-readers-title">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+          <span>Últimos Lectores</span>
+        </h2>
+
+        {readersQuery.isLoading && <Loading text="Cargando lectores..." />}
+        {readersQuery.isError && <ErrorBox error={readersQuery.error} />}
+
+        {readersQuery.data && readersQuery.data.length === 0 && (
+          <p className="muted-text">Todavía no hay lectores registrados para este manga. ¡Sé el primero!</p>
+        )}
+
+        {readersQuery.data && readersQuery.data.length > 0 && (
+          <div className="content-readers-grid">
+            {readersQuery.data.map((reader) => (
+              <Link
+                key={reader.id}
+                to={`/profile/${encodeURIComponent(reader.username)}`}
+                className="content-reader-item"
+              >
+                <div className="content-reader-avatar-wrap">
+                  {reader.profileImageUrl ? (
+                    <ProtectedImage
+                      path={reader.profileImageUrl}
+                      alt={reader.username}
+                      className="content-reader-avatar"
+                    />
+                  ) : (
+                    <span className="content-reader-avatar-fallback">
+                      {reader.username.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="content-reader-meta">
+                  <span className="content-reader-name">{reader.username}</span>
+                  <span className="content-reader-level">Nivel {reader.readingLevel}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </article>
     </section>
   );

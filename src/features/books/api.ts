@@ -10,10 +10,12 @@ import {
 import type {
   Book,
   BookProgress,
+  BookRankingItem,
   BookReadManifest,
   BookReaderPreferences,
   BookSpineItem,
   BookTocItem,
+  RecentReader,
   Tag,
 } from "@/types/domain";
 
@@ -344,5 +346,33 @@ export async function uploadBookCover(payload: { bookId: string; file: File }) {
   return apiClient.request(`/books/${payload.bookId}/upload-cover`, {
     method: "POST",
     body: formData,
+  });
+}
+
+export async function getBookReaders(bookId: string): Promise<RecentReader[]> {
+  const response = await apiClient.request<unknown>(`/books/${bookId}/readers`);
+  return unwrapArray(response).map((item) => {
+    const source = unwrapObject(item);
+    const profileImageUrl = pickString(source, ["profileImageUrl"], "");
+    return {
+      id: pickString(source, ["id"]),
+      username: pickString(source, ["username"]),
+      profileImageUrl: profileImageUrl || null,
+      readingLevel: Math.max(1, pickNumber(source, ["readingLevel"], 1)),
+      readingXpTotal: Math.max(0, pickNumber(source, ["readingXpTotal"], 0)),
+      lastReadAt: pickString(source, ["lastReadAt"], ""),
+    };
+  });
+}
+
+export async function getBookRankings(): Promise<BookRankingItem[]> {
+  const response = await apiClient.request<unknown>("/books/rankings");
+  return unwrapArray(response).map((item) => {
+    const source = unwrapObject(item);
+    return {
+      rank: pickNumber(source, ["rank"], 1),
+      readersCount: pickNumber(source, ["readersCount", "readers", "count"], 0),
+      book: adaptBook(source.book),
+    };
   });
 }
