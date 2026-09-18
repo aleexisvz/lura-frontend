@@ -17,6 +17,36 @@ export type UserProfile = {
   readingLevel: number;
 };
 
+export type UserSearchResult = {
+  id: string;
+  username: string;
+  profileImageUrl: string | null;
+  readingLevel: number;
+  readingXpTotal: number;
+};
+
+export type PublicUserProfile = {
+  id: string;
+  username: string;
+  role: Role;
+  createdAt: string;
+  profileImageUrl: string | null;
+  readingXpTotal: number;
+  readingLevel: number;
+  stats: ReadingStats;
+  recentSeries: RecentSeriesResponse;
+  continueReading: ContinueReadingItem[];
+};
+
+export type RecentReader = {
+  id: string;
+  username: string;
+  profileImageUrl: string | null;
+  readingLevel: number;
+  readingXpTotal: number;
+  lastReadAt: string;
+};
+
 export type TagScope = "MANGA" | "BOOK";
 
 export type Tag = {
@@ -195,4 +225,21 @@ export type BookProgress = {
   completed?: boolean;
   completedAt?: string | null;
   updatedAt: string;
+};
+
+export type BookRankingItem = {
+  rank: number;
+  readersCount: number;
+  book: Book;
+};
+
+export type UserRankingItem = {
+  rank: number;
+  id: string;
+  username: string;
+  role: "USER" | "ADMIN";
+  profileImageUrl: string | null;
+  readingLevel: number;
+  readingXpTotal: number;
+  readingTimeTotalSeconds: number;
 };

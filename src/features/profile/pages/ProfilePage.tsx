@@ -1,11 +1,11 @@
 import { useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ErrorBox } from "@/components/ErrorBox";
 import { Loading } from "@/components/Loading";
 import { ProtectedImage } from "@/components/ProtectedImage";
 import { getContinueReading, getReadingStats, getRecentSeries } from "@/features/reading/api";
-import { getMe, updateUsername, uploadProfileImage } from "@/features/users/api";
+import { getMe, getPublicProfile, updateUsername, uploadProfileImage } from "@/features/users/api";
 
 function formatRegistrationDate(createdAt: string): string {
   if (!createdAt) return "Registro: fecha no disponible";
@@ -123,6 +123,7 @@ function resolveVolumeLabel(item: {
 }
 
 export function ProfilePage() {
+  const { username: routeUsername } = useParams<{ username?: string }>();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
@@ -134,6 +135,18 @@ export function ProfilePage() {
   const meQuery = useQuery({
     queryKey: ["me"],
     queryFn: getMe,
+  });
+
+  const isViewingOtherUser = Boolean(
+    routeUsername &&
+      meQuery.data?.username &&
+      routeUsername.toLowerCase() !== meQuery.data.username.toLowerCase()
+  );
+
+  const publicProfileQuery = useQuery({
+    queryKey: ["public-profile", routeUsername],
+    queryFn: () => getPublicProfile(routeUsername!),
+    enabled: isViewingOtherUser,
   });
 
   const updateUsernameMutation = useMutation({
@@ -242,31 +255,39 @@ export function ProfilePage() {
   const statsQuery = useQuery({
     queryKey: ["reading-stats"],
     queryFn: getReadingStats,
+    enabled: !isViewingOtherUser,
     refetchOnMount: "always",
   });
 
   const recentSeriesQuery = useQuery({
     queryKey: ["recent-series"],
     queryFn: () => getRecentSeries(12),
+    enabled: !isViewingOtherUser,
     refetchOnMount: "always",
   });
 
   const continueReadingQuery = useQuery({
     queryKey: ["continue-reading"],
     queryFn: getContinueReading,
+    enabled: !isViewingOtherUser,
     refetchOnMount: "always",
   });
 
-  const username = meQuery.data?.username || "usuario";
-  const registrationLabel = formatRegistrationDate(meQuery.data?.createdAt ?? "");
-  const readingLevel = meQuery.data?.readingLevel ?? statsQuery.data?.readingLevel ?? 1;
+  const displayUser = isViewingOtherUser ? publicProfileQuery.data : meQuery.data;
+  const username = displayUser?.username || routeUsername || "usuario";
+  const registrationLabel = formatRegistrationDate(displayUser?.createdAt ?? "");
+  const statsData = isViewingOtherUser ? publicProfileQuery.data?.stats : statsQuery.data;
+  const recentSeriesData = isViewingOtherUser ? publicProfileQuery.data?.recentSeries : recentSeriesQuery.data;
+  const rawContinueReading = isViewingOtherUser ? publicProfileQuery.data?.continueReading : continueReadingQuery.data;
+  const readingLevel = displayUser?.readingLevel ?? statsData?.readingLevel ?? 1;
+
   const [recentTab, setRecentTab] = useState<"manga" | "books">("manga");
   const [statsTab, setStatsTab] = useState<"manga" | "books">("manga");
   const [lastReadTab, setLastReadTab] = useState<"manga" | "books">("manga");
 
   const lastReadVolumeItems = useMemo(
     () =>
-      (continueReadingQuery.data ?? []).map((item) => {
+      (rawContinueReading ?? []).map((item) => {
         const totalPages = item.totalPages ?? 0;
         const derivedPercent =
           totalPages > 0 ? clampPercent((item.pageNumber / totalPages) * 100) : 0;
@@ -284,7 +305,7 @@ export function ProfilePage() {
               : resolveVolumeLabel(item),
         };
       }),
-    [continueReadingQuery.data]
+    [rawContinueReading]
   );
 
   const filteredLastReadItems = useMemo(
@@ -295,66 +316,112 @@ export function ProfilePage() {
     [lastReadTab, lastReadVolumeItems]
   );
 
+  if (isViewingOtherUser && publicProfileQuery.isLoading) {
+    return (
+      <section className="profile-v2-page">
+        <Loading text={`Cargando perfil de ${routeUsername}...`} />
+      </section>
+    );
+  }
+
+  if (isViewingOtherUser && publicProfileQuery.isError) {
+    return (
+      <section className="profile-v2-page">
+        <article className="card" style={{ padding: "3rem 1.5rem", textAlign: "center" }}>
+          <h2 style={{ marginBottom: "0.5rem" }}>Usuario no encontrado</h2>
+          <p className="muted-text" style={{ marginBottom: "1.5rem" }}>
+            No pudimos encontrar el perfil de &quot;{routeUsername}&quot;. Es posible que el usuario no exista.
+          </p>
+          <Link to="/profile" className="secondary-button" style={{ display: "inline-block" }}>
+            Volver a mi perfil
+          </Link>
+        </article>
+      </section>
+    );
+  }
+
   return (
     <section className="profile-v2-page">
       <article className="card profile-hero-card">
         <div className="profile-hero-main">
           <div className="profile-hero-avatar-wrap">
-            <button
-              type="button"
-              className={`profile-hero-avatar-button${uploadMutation.isPending ? " is-uploading" : ""}`}
-              onClick={handleAvatarClick}
-              disabled={uploadMutation.isPending}
-              aria-label="Cambiar foto de perfil"
-              title="Cambiar foto de perfil"
-            >
-              {meQuery.data?.profileImageUrl ? (
-                <ProtectedImage
-                  path={meQuery.data.profileImageUrl}
-                  alt={`Avatar de ${username}`}
-                  className="profile-hero-avatar"
-                />
-              ) : (
-                <div className="profile-hero-avatar profile-hero-avatar-fallback">
-                  {username.charAt(0).toUpperCase()}
-                </div>
-              )}
-
-              <div className="profile-hero-avatar-overlay">
-                {uploadMutation.isPending ? (
-                  <span className="profile-avatar-spinner" aria-hidden="true" />
+            {isViewingOtherUser ? (
+              <div className="profile-hero-avatar profile-hero-avatar-static">
+                {displayUser?.profileImageUrl ? (
+                  <ProtectedImage
+                    path={displayUser.profileImageUrl}
+                    alt={`Avatar de ${username}`}
+                    className="profile-hero-avatar"
+                  />
                 ) : (
-                  <svg
-                    className="profile-avatar-camera-icon"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                    <circle cx="12" cy="13" r="4" />
-                  </svg>
+                  <div className="profile-hero-avatar profile-hero-avatar-fallback">
+                    {username.charAt(0).toUpperCase()}
+                  </div>
                 )}
               </div>
-            </button>
+            ) : (
+              <button
+                type="button"
+                className={`profile-hero-avatar-button${uploadMutation.isPending ? " is-uploading" : ""}`}
+                onClick={handleAvatarClick}
+                disabled={uploadMutation.isPending}
+                aria-label="Cambiar foto de perfil"
+                title="Cambiar foto de perfil"
+              >
+                {meQuery.data?.profileImageUrl ? (
+                  <ProtectedImage
+                    path={meQuery.data.profileImageUrl}
+                    alt={`Avatar de ${username}`}
+                    className="profile-hero-avatar"
+                  />
+                ) : (
+                  <div className="profile-hero-avatar profile-hero-avatar-fallback">
+                    {username.charAt(0).toUpperCase()}
+                  </div>
+                )}
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              style={{ display: "none" }}
-              onChange={handleFileChange}
-              tabIndex={-1}
-            />
+                <div className="profile-hero-avatar-overlay">
+                  {uploadMutation.isPending ? (
+                    <span className="profile-avatar-spinner" aria-hidden="true" />
+                  ) : (
+                    <svg
+                      className="profile-avatar-camera-icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                      <circle cx="12" cy="13" r="4" />
+                    </svg>
+                  )}
+                </div>
+              </button>
+            )}
+
+            {!isViewingOtherUser && (
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                style={{ display: "none" }}
+                onChange={handleFileChange}
+                tabIndex={-1}
+              />
+            )}
 
             <span className="profile-level-badge">{readingLevel}</span>
           </div>
 
           <div className="profile-hero-meta">
-            {isEditingName ? (
+            {isViewingOtherUser ? (
+              <div className="profile-hero-name-row">
+                <h1>{username}</h1>
+              </div>
+            ) : isEditingName ? (
               <form className="profile-edit-name-form" onSubmit={handleSaveName}>
                 <div className="profile-edit-name-row">
                   <input
@@ -410,7 +477,7 @@ export function ProfilePage() {
               </div>
             )}
             <p className="muted-text">{registrationLabel}</p>
-            {uploadError && <p className="profile-upload-error">{uploadError}</p>}
+            {!isViewingOtherUser && uploadError && <p className="profile-upload-error">{uploadError}</p>}
           </div>
         </div>
       </article>
@@ -440,9 +507,9 @@ export function ProfilePage() {
                 </button>
               </div>
             </div>
-            {statsQuery.isLoading && <Loading />}
-            {statsQuery.isError && <ErrorBox error={statsQuery.error} />}
-            {statsQuery.data && (
+            {!isViewingOtherUser && statsQuery.isLoading && <Loading />}
+            {!isViewingOtherUser && statsQuery.isError && <ErrorBox error={statsQuery.error} />}
+            {statsData && (
               <div style={{ display: "grid", gap: "0.85rem" }}>
                 {/* Barra de Nivel y XP */}
                 <div
@@ -465,9 +532,9 @@ export function ProfilePage() {
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       <span style={{ color: "var(--accent-gold)" }}>
-                        Nivel {statsQuery.data.readingLevel}
+                        Nivel {statsData.readingLevel}
                       </span>
-                      {statsQuery.data.isHotWeekend && (
+                      {statsData.isHotWeekend && (
                         <span
                           className="hot-weekend-badge"
                           title="¡Doble experiencia activa por fin de semana!"
@@ -477,7 +544,7 @@ export function ProfilePage() {
                       )}
                     </div>
                     <span style={{ color: "var(--text-muted)" }}>
-                      {statsQuery.data.xpInLevel} / {statsQuery.data.xpToNextLevel} XP
+                      {statsData.xpInLevel} / {statsData.xpToNextLevel} XP
                     </span>
                   </div>
                   <div
@@ -491,7 +558,7 @@ export function ProfilePage() {
                   >
                     <div
                       style={{
-                        width: `${statsQuery.data.xpProgressPercent}%`,
+                        width: `${statsData.xpProgressPercent}%`,
                         height: "100%",
                         background: "linear-gradient(90deg, #d97706, #f59e0b)",
                       }}
@@ -504,13 +571,13 @@ export function ProfilePage() {
                   <div className="stat-kpi-item">
                     <span className="stat-kpi-label">Tiempo Total</span>
                     <span className="stat-kpi-val highlight">
-                      {formatReadingTime(statsQuery.data.totalSeconds)}
+                      {formatReadingTime(statsData.totalSeconds)}
                     </span>
                   </div>
                   <div className="stat-kpi-item">
                     <span className="stat-kpi-label">Páginas Leídas</span>
                     <span className="stat-kpi-val">
-                      {statsQuery.data.totalPagesRead}
+                      {statsData.totalPagesRead}
                     </span>
                   </div>
                   <div className="stat-kpi-item">
@@ -519,8 +586,8 @@ export function ProfilePage() {
                     </span>
                     <span className="stat-kpi-val">
                       {statsTab === "books"
-                        ? statsQuery.data.totalBooksRead ?? 0
-                        : statsQuery.data.totalMangasRead ?? statsQuery.data.totalSeriesRead ?? 0}
+                        ? statsData.totalBooksRead ?? 0
+                        : statsData.totalMangasRead ?? statsData.totalSeriesRead ?? 0}
                     </span>
                   </div>
                   <div className="stat-kpi-item">
@@ -529,8 +596,8 @@ export function ProfilePage() {
                     </span>
                     <span className="stat-kpi-val">
                       {statsTab === "books"
-                        ? statsQuery.data.totalChaptersRead ?? 0
-                        : statsQuery.data.totalVolumesRead ?? 0}
+                        ? statsData.totalChaptersRead ?? 0
+                        : statsData.totalVolumesRead ?? 0}
                     </span>
                   </div>
                 </div>
@@ -561,16 +628,16 @@ export function ProfilePage() {
                 </button>
               </div>
             </div>
-            {recentSeriesQuery.isLoading && <Loading />}
-            {recentSeriesQuery.isError && <ErrorBox error={recentSeriesQuery.error} />}
-            {recentSeriesQuery.data && (
+            {!isViewingOtherUser && recentSeriesQuery.isLoading && <Loading />}
+            {!isViewingOtherUser && recentSeriesQuery.isError && <ErrorBox error={recentSeriesQuery.error} />}
+            {recentSeriesData && (
               <div className="profile-recent-sections">
                 {recentTab === "manga" && (
-                  recentSeriesQuery.data.manga.length === 0 ? (
+                  recentSeriesData.manga.length === 0 ? (
                     <p className="muted-text">No hay mangas recientes.</p>
                   ) : (
                     <div className="profile-recent-grid">
-                      {recentSeriesQuery.data.manga.map((item) => (
+                      {recentSeriesData.manga.map((item) => (
                         <Link
                           key={`manga-${item.contentId}`}
                           to={`/manga/${item.contentId}`}
@@ -594,11 +661,11 @@ export function ProfilePage() {
                   )
                 )}
                 {recentTab === "books" && (
-                  recentSeriesQuery.data.books.length === 0 ? (
+                  recentSeriesData.books.length === 0 ? (
                     <p className="muted-text">No hay books recientes.</p>
                   ) : (
                     <div className="profile-recent-grid">
-                      {recentSeriesQuery.data.books.map((item) => (
+                      {recentSeriesData.books.map((item) => (
                         <Link
                           key={`book-${item.contentId}`}
                           to={`/books/${item.contentId}`}
@@ -630,7 +697,7 @@ export function ProfilePage() {
           <div className="profile-last-read-header">
             <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <span style={{ display: "inline-flex", color: "var(--accent-gold)" }}><ZapIcon /></span>
-              <span>Continuar Leyendo</span>
+              <span>{isViewingOtherUser ? "Lecturas en Curso" : "Continuar Leyendo"}</span>
             </h2>
             <div className="profile-recent-tabs">
               <button
@@ -650,11 +717,10 @@ export function ProfilePage() {
             </div>
           </div>
 
-          {continueReadingQuery.isLoading && <Loading text="Cargando lecturas en curso..." />}
-          {continueReadingQuery.isError && <ErrorBox error={continueReadingQuery.error} />}
+          {!isViewingOtherUser && continueReadingQuery.isLoading && <Loading text="Cargando lecturas en curso..." />}
+          {!isViewingOtherUser && continueReadingQuery.isError && <ErrorBox error={continueReadingQuery.error} />}
 
-          {!continueReadingQuery.isLoading &&
-            !continueReadingQuery.isError &&
+          {(!isViewingOtherUser ? !continueReadingQuery.isLoading && !continueReadingQuery.isError : true) &&
             filteredLastReadItems.length === 0 && (
               <p className="muted-text">
                 {lastReadTab === "books"
@@ -672,7 +738,11 @@ export function ProfilePage() {
                     : `${item.mangaId}-${item.volumeId}`
                 }
                 to={
-                  item.contentType === "BOOK"
+                  isViewingOtherUser
+                    ? item.contentType === "BOOK"
+                      ? `/books/${item.bookId}`
+                      : `/manga/${item.mangaId}`
+                    : item.contentType === "BOOK"
                     ? `/books/${item.bookId}/read`
                     : `/reader/${item.mangaId}/${item.volumeId}/${item.pageNumber}`
                 }

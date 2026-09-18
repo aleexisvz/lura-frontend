@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "@/features/auth/AuthContext";
 import { getMe } from "@/features/users/api";
 import { ProtectedImage } from "@/components/ProtectedImage";
+import { UserSearchModal } from "@/components/UserSearchModal";
 
 const navItems = [
   { to: "/", label: "Home" },
@@ -24,6 +25,8 @@ export function AppLayout() {
     const day = new Date().getDay();
     return day === 0 || day === 6;
   }, []);
+
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const avatarInitial = (meQuery.data?.username ?? meQuery.data?.email ?? email ?? "?")
     .charAt(0)
@@ -55,6 +58,28 @@ export function AppLayout() {
             )}
           </nav>
           <div className="topbar-actions">
+            <button
+              type="button"
+              className="topbar-search-button"
+              onClick={() => setIsSearchOpen(true)}
+              title="Buscar usuarios"
+              aria-label="Buscar usuarios"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </button>
             <div className="topbar-avatar-wrap">
               <Link className="topbar-avatar-link" to="/profile" title={meQuery.data?.username || email || "Perfil"}>
                 {meQuery.data?.profileImageUrl ? (
@@ -86,6 +111,7 @@ export function AppLayout() {
       <main className="container">
         <Outlet />
       </main>
+      <UserSearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
     </div>
   );
 }

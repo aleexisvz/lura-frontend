@@ -24,6 +24,7 @@ export function AppRouter() {
         <Route element={<AppLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/profile/:username" element={<ProfilePage />} />
           <Route path="/manga" element={<MangaListPage />} />
           <Route path="/manga/:mangaId" element={<MangaDetailPage />} />
           <Route
