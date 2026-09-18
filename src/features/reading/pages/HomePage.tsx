@@ -5,6 +5,8 @@ import { ProtectedImage } from "@/components/ProtectedImage";
 import { Loading } from "@/components/Loading";
 import { ErrorBox } from "@/components/ErrorBox";
 import { getFeaturedManga, getRecentMangaUpdates, getMangaRankings } from "@/features/manga/api";
+import { getBookRankings } from "@/features/books/api";
+import { getUserRankings } from "@/features/users/api";
 import { getContinueReading } from "@/features/reading/api";
 import { getTags } from "@/features/tags/api";
 import { Manga } from "@/types/domain";
@@ -82,6 +84,7 @@ export function HomePage() {
   const [slideDirection, setSlideDirection] = useState<"next" | "prev">("next");
   const [isPaused, setIsPaused] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [activeRankingTab, setActiveRankingTab] = useState<"manga" | "books" | "users">("manga");
 
   // Queries
   const featuredQuery = useQuery({
@@ -97,6 +100,18 @@ export function HomePage() {
   const rankingsQuery = useQuery({
     queryKey: ["manga-rankings"],
     queryFn: getMangaRankings,
+  });
+
+  const bookRankingsQuery = useQuery({
+    queryKey: ["books-rankings"],
+    queryFn: getBookRankings,
+    enabled: activeRankingTab === "books",
+  });
+
+  const userRankingsQuery = useQuery({
+    queryKey: ["users-rankings"],
+    queryFn: getUserRankings,
+    enabled: activeRankingTab === "users",
   });
 
   const continueQuery = useQuery({
@@ -161,9 +176,17 @@ export function HomePage() {
   }, [updatesQuery.data, selectedTag]);
 
   // Rankings (limited to 5)
-  const rankings = useMemo(() => {
+  const mangaRankings = useMemo(() => {
     return (rankingsQuery.data ?? []).slice(0, 5);
   }, [rankingsQuery.data]);
+
+  const bookRankings = useMemo(() => {
+    return (bookRankingsQuery.data ?? []).slice(0, 5);
+  }, [bookRankingsQuery.data]);
+
+  const userRankings = useMemo(() => {
+    return (userRankingsQuery.data ?? []).slice(0, 5);
+  }, [userRankingsQuery.data]);
   // Active Continue Reading item
   const latestContinue = continueQuery.data?.[0];
 
@@ -495,73 +518,249 @@ export function HomePage() {
               <h2 className="mp-section-title">
                 <span className="mp-ranking-fire"><FireIcon /></span> Hottest Rankings
               </h2>
-              <span className="mp-section-subtitle">Los mangas más leídos por la comunidad</span>
+              <span className="mp-section-subtitle">
+                {activeRankingTab === "manga"
+                  ? "Los mangas más leídos por la comunidad"
+                  : activeRankingTab === "books"
+                  ? "Los libros más leídos por la comunidad"
+                  : "Los lectores más activos de la comunidad"}
+              </span>
             </div>
           </div>
 
-          {rankingsQuery.isLoading && <Loading />}
-          {rankingsQuery.isError && <ErrorBox error={rankingsQuery.error} />}
+          <div className="mp-ranking-tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeRankingTab === "manga"}
+              className={`mp-ranking-tab ${activeRankingTab === "manga" ? "active" : ""}`}
+              onClick={() => setActiveRankingTab("manga")}
+            >
+              Mangas
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeRankingTab === "books"}
+              className={`mp-ranking-tab ${activeRankingTab === "books" ? "active" : ""}`}
+              onClick={() => setActiveRankingTab("books")}
+            >
+              Libros
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeRankingTab === "users"}
+              className={`mp-ranking-tab ${activeRankingTab === "users" ? "active" : ""}`}
+              onClick={() => setActiveRankingTab("users")}
+            >
+              Usuarios
+            </button>
+          </div>
 
-          {!rankingsQuery.isLoading && rankings.length === 0 ? (
-            <div className="mp-empty-state">
-              <p>Los rankings se actualizarán a medida que la comunidad comience a leer.</p>
-            </div>
-          ) : (
-            <div className="mp-ranking-list">
-              {rankings.map((item, index) => {
-                const rankNum = item.rank || index + 1;
-                const isTop3 = rankNum <= 3;
-                const manga = item.manga;
+          {/* MANGA TAB */}
+          {activeRankingTab === "manga" && (
+            <>
+              {rankingsQuery.isLoading && <Loading />}
+              {rankingsQuery.isError && <ErrorBox error={rankingsQuery.error} />}
 
-                return (
-                  <Link
-                    key={`rank-${manga.id}-${rankNum}`}
-                    to={`/manga/${manga.id}`}
-                    className={`mp-ranking-item ${isTop3 ? `top-${rankNum}` : ""}`}
-                  >
-                    {/* Stylized Rank Number */}
-                    <div className={`mp-rank-number rank-${rankNum}`}>
-                      {rankNum}
-                    </div>
+              {!rankingsQuery.isLoading && mangaRankings.length === 0 ? (
+                <div className="mp-empty-state">
+                  <p>Los rankings de manga se actualizarán a medida que la comunidad comience a leer.</p>
+                </div>
+              ) : (
+                <div className="mp-ranking-list">
+                  {mangaRankings.map((item, index) => {
+                    const rankNum = item.rank || index + 1;
+                    const isTop3 = rankNum <= 3;
+                    const manga = item.manga;
 
-                    {/* Manga Thumbnail */}
-                    <div className="mp-ranking-thumb-wrap">
-                      {manga.coverUrl ? (
-                        <ProtectedImage
-                          path={manga.coverUrl}
-                          alt={manga.title}
-                          className="mp-ranking-thumb"
-                        />
-                      ) : (
-                        <div className="mp-ranking-thumb-fallback">
-                          M
+                    return (
+                      <Link
+                        key={`manga-rank-${manga.id}-${rankNum}`}
+                        to={`/manga/${manga.id}`}
+                        className={`mp-ranking-item ${isTop3 ? `top-${rankNum}` : ""}`}
+                      >
+                        {/* Stylized Rank Number */}
+                        <div className={`mp-rank-number rank-${rankNum}`}>
+                          {rankNum}
                         </div>
-                      )}
-                    </div>
 
-                    {/* Manga Ranking Info */}
-                    <div className="mp-ranking-info">
-                      <div className="mp-ranking-title-row">
-                        <span className="mp-ranking-title">{manga.title}</span>
-                      </div>
+                        {/* Manga Thumbnail */}
+                        <div className="mp-ranking-thumb-wrap">
+                          {manga.coverUrl ? (
+                            <ProtectedImage
+                              path={manga.coverUrl}
+                              alt={manga.title}
+                              className="mp-ranking-thumb"
+                            />
+                          ) : (
+                            <div className="mp-ranking-thumb-fallback">
+                              M
+                            </div>
+                          )}
+                        </div>
 
-                      {manga.titleKanji && (
-                        <span className="mp-ranking-kanji">{manga.titleKanji}</span>
-                      )}
+                        {/* Manga Ranking Info */}
+                        <div className="mp-ranking-info">
+                          <div className="mp-ranking-title-row">
+                            <span className="mp-ranking-title">{manga.title}</span>
+                          </div>
 
-                      <div className="mp-ranking-meta-row">
-                        <span className="mp-ranking-author">
-                          {manga.author || "Manga"}
-                        </span>
-                        <span className="mp-ranking-views">
-                          <FireIcon /> {item.readersCount > 0 ? `${item.readersCount} views` : "Popular"}
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
+                          {manga.titleKanji && (
+                            <span className="mp-ranking-kanji">{manga.titleKanji}</span>
+                          )}
+
+                          <div className="mp-ranking-meta-row">
+                            <span className="mp-ranking-author">
+                              {manga.author || "Manga"}
+                            </span>
+                            <span className="mp-ranking-views">
+                              <FireIcon /> {item.readersCount > 0 ? `${item.readersCount} views` : "Popular"}
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* BOOKS TAB */}
+          {activeRankingTab === "books" && (
+            <>
+              {bookRankingsQuery.isLoading && <Loading />}
+              {bookRankingsQuery.isError && <ErrorBox error={bookRankingsQuery.error} />}
+
+              {!bookRankingsQuery.isLoading && bookRankings.length === 0 ? (
+                <div className="mp-empty-state">
+                  <p>Los rankings de libros se actualizarán a medida que la comunidad comience a leer.</p>
+                </div>
+              ) : (
+                <div className="mp-ranking-list">
+                  {bookRankings.map((item, index) => {
+                    const rankNum = item.rank || index + 1;
+                    const isTop3 = rankNum <= 3;
+                    const book = item.book;
+
+                    return (
+                      <Link
+                        key={`book-rank-${book.id}-${rankNum}`}
+                        to={`/books/${book.id}`}
+                        className={`mp-ranking-item ${isTop3 ? `top-${rankNum}` : ""}`}
+                      >
+                        {/* Stylized Rank Number */}
+                        <div className={`mp-rank-number rank-${rankNum}`}>
+                          {rankNum}
+                        </div>
+
+                        {/* Book Thumbnail */}
+                        <div className="mp-ranking-thumb-wrap">
+                          {book.coverUrl ? (
+                            <ProtectedImage
+                              path={book.coverUrl}
+                              alt={book.title}
+                              className="mp-ranking-thumb"
+                            />
+                          ) : (
+                            <div className="mp-ranking-thumb-fallback">
+                              B
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Book Ranking Info */}
+                        <div className="mp-ranking-info">
+                          <div className="mp-ranking-title-row">
+                            <span className="mp-ranking-title">{book.title}</span>
+                          </div>
+
+                          <div className="mp-ranking-meta-row">
+                            <span className="mp-ranking-author">
+                              {book.author || "Libro"}
+                            </span>
+                            <span className="mp-ranking-views">
+                              <FireIcon /> {item.readersCount > 0 ? `${item.readersCount} views` : "Popular"}
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* USERS TAB */}
+          {activeRankingTab === "users" && (
+            <>
+              {userRankingsQuery.isLoading && <Loading />}
+              {userRankingsQuery.isError && <ErrorBox error={userRankingsQuery.error} />}
+
+              {!userRankingsQuery.isLoading && userRankings.length === 0 ? (
+                <div className="mp-empty-state">
+                  <p>Los rankings de usuarios se actualizarán a medida que la comunidad acumule XP.</p>
+                </div>
+              ) : (
+                <div className="mp-ranking-list">
+                  {userRankings.map((user, index) => {
+                    const rankNum = user.rank || index + 1;
+                    const isTop3 = rankNum <= 3;
+
+                    return (
+                      <Link
+                        key={`user-rank-${user.id}-${rankNum}`}
+                        to={`/profile/${encodeURIComponent(user.username)}`}
+                        className={`mp-ranking-item ${isTop3 ? `top-${rankNum}` : ""}`}
+                      >
+                        {/* Stylized Rank Number */}
+                        <div className={`mp-rank-number rank-${rankNum}`}>
+                          {rankNum}
+                        </div>
+
+                        {/* User Avatar */}
+                        <div className="mp-ranking-thumb-wrap is-user">
+                          {user.profileImageUrl ? (
+                            <ProtectedImage
+                              path={user.profileImageUrl}
+                              alt={user.username}
+                              className="mp-ranking-thumb"
+                            />
+                          ) : (
+                            <div className="mp-ranking-user-fallback">
+                              {user.username.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* User Ranking Info */}
+                        <div className="mp-ranking-info">
+                          <div className="mp-ranking-title-row">
+                            <span className="mp-ranking-title">{user.username}</span>
+                          </div>
+
+                          <span className="mp-ranking-kanji">
+                            {user.role === "ADMIN" ? "Administrador" : "Lector"}
+                          </span>
+
+                          <div className="mp-ranking-meta-row">
+                            <span className="mp-ranking-author">
+                              Nivel {user.readingLevel}
+                            </span>
+                            <span className="mp-ranking-views">
+                              <FireIcon /> {user.readingXpTotal} XP
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
 
           {/* Quick Japanese Categories Widget */}
