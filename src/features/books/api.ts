@@ -224,6 +224,7 @@ export async function saveBookProgress(
       : (existing.progressPercent ?? 0);
 
   const isCompleted =
+    existing.completed === true ||
     payload.completed === true ||
     pct >= 100 ||
     (typeof effectiveTotalPages === "number" &&
