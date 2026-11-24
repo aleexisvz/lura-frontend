@@ -88,55 +88,6 @@ export async function getContinueReading(): Promise<ContinueReadingItem[]> {
     }
   } catch {}
 
-  // Self-heal any book items that lack coverUrl or title by querying /books
-  const booksNeedingEnrichment = serverItems.filter(
-    (item) =>
-      item.contentType === "BOOK" &&
-      item.bookId &&
-      (!item.coverUrl || !item.title || item.title === "Book" || item.title === "Libro")
-  );
-
-  if (booksNeedingEnrichment.length > 0) {
-    try {
-      const allBooks = await apiClient.request<unknown>("/books").catch(() => null);
-      if (allBooks) {
-        const booksList = unwrapArray(allBooks).map(unwrapObject);
-        const bookMap = new Map(
-          booksList.map((b) => [
-            pickString(b, ["id"]),
-            {
-              title: pickString(b, ["title"]),
-              coverUrl: pickString(b, ["coverUrl"]) || null,
-            },
-          ])
-        );
-
-        for (const item of booksNeedingEnrichment) {
-          if (item.bookId) {
-            const b = bookMap.get(item.bookId);
-            if (b) {
-              if (b.title) {
-                item.title = b.title;
-                item.mangaTitle = b.title;
-              }
-              if (b.coverUrl) {
-                item.coverUrl = b.coverUrl;
-              }
-              try {
-                const raw = localStorage.getItem(`lura_book_progress_${item.bookId}`);
-                if (raw) {
-                  const parsed = JSON.parse(raw);
-                  parsed.title = b.title || parsed.title;
-                  parsed.coverUrl = b.coverUrl || parsed.coverUrl;
-                  localStorage.setItem(`lura_book_progress_${item.bookId}`, JSON.stringify(parsed));
-                }
-              } catch {}
-            }
-          }
-        }
-      }
-    } catch {}
-  }
 
   return serverItems;
 }
