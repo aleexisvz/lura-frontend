@@ -88,6 +88,23 @@ export async function getMangaList(filters: MangaListFilters = {}) {
   return unwrapArray(response).map(adaptManga);
 }
 
+// Page size for catalog lists. Must stay within the backend limit (1 to 100).
+export const CATALOG_PAGE_SIZE = 50;
+
+export async function getMangaPage(filters: MangaListFilters = {}, cursor: string | null = null) {
+  const params = new URLSearchParams({ limit: String(CATALOG_PAGE_SIZE) });
+  const tagIds = filters.tagIds?.filter(Boolean) ?? [];
+  if (tagIds.length > 0) {
+    params.set("tagIds", tagIds.join(","));
+  }
+  if (cursor) {
+    params.set("cursor", cursor);
+  }
+
+  const { data, nextCursor } = await apiClient.requestPage<unknown>(`/manga?${params.toString()}`);
+  return { items: unwrapArray(data).map(adaptManga), nextCursor };
+}
+
 export async function getFeaturedManga(): Promise<Manga[]> {
   const response = await apiClient.request<unknown>("/manga/featured");
   return unwrapArray(response).map(adaptManga);
