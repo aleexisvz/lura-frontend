@@ -1,8 +1,8 @@
-import { useState, useRef, FormEvent, ChangeEvent } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState, useRef, FormEvent, ChangeEvent } from "react";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Book, Tag } from "@/types/domain";
 import {
-  getBooks,
+  getBooksPage,
   createBook,
   updateBook,
   uploadBookCover,
@@ -43,20 +43,22 @@ export function BookAdminSection({ tags }: BookAdminSectionProps) {
   const epubInputRef = useRef<HTMLInputElement>(null);
   const [uploadTargetBookId, setUploadTargetBookId] = useState<string | null>(null);
 
-  const booksQuery = useQuery({
-    queryKey: ["books-admin"],
-    queryFn: () => getBooks(),
+  // The search runs on the server; wait briefly after typing before asking.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const booksQuery = useInfiniteQuery({
+    queryKey: ["books-admin", debouncedSearch],
+    queryFn: ({ pageParam }) => getBooksPage({ search: debouncedSearch }, pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
 
-  const books: Book[] = booksQuery.data ?? [];
-
-  const filteredBooks = books.filter((b) => {
-    if (!searchQuery.trim()) return true;
-    return (
-      b.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (b.author && b.author.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-  });
+  const books: Book[] = booksQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  const totalBooks = booksQuery.data?.pages[0]?.totalCount ?? 0;
 
   // Mutations
   const updateBookMutation = useMutation({
@@ -227,7 +229,7 @@ export function BookAdminSection({ tags }: BookAdminSectionProps) {
         <div className="header-info">
           <h2>Gestión de Libros & EPUBs</h2>
           <p className="muted-text">
-            {books.length} libros registrados • Sube archivos .epub, administra portadas y metadatos.
+            {debouncedSearch ? `${totalBooks} resultados` : `${totalBooks} libros registrados`} • Sube archivos .epub, administra portadas y metadatos.
           </p>
         </div>
 
@@ -477,7 +479,7 @@ export function BookAdminSection({ tags }: BookAdminSectionProps) {
 
       {/* Books Table / Grid */}
       <div className="books-admin-grid">
-        {filteredBooks.map((book) => (
+        {books.map((book) => (
           <div key={book.id} className="book-admin-card card">
             <div className="book-card-cover-wrap">
               {book.coverUrl ? (
@@ -531,6 +533,19 @@ export function BookAdminSection({ tags }: BookAdminSectionProps) {
           </div>
         ))}
       </div>
+
+      {booksQuery.hasNextPage && (
+        <div className="load-more-row">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => booksQuery.fetchNextPage()}
+            disabled={booksQuery.isFetchingNextPage}
+          >
+            {booksQuery.isFetchingNextPage ? "Cargando..." : "Cargar más"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
