@@ -1,7 +1,7 @@
-import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState, useMemo } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { Manga, Tag } from "@/types/domain";
-import { getMangaList } from "@/features/manga/api";
+import { getMangaPage } from "@/features/manga/api";
 import { MangaStudioWorkspace } from "./MangaStudioWorkspace";
 import { MangaUploadWizardModal } from "./MangaUploadWizardModal";
 
@@ -15,37 +15,34 @@ export function MangaAdminSection({ tags }: MangaAdminSectionProps) {
   const [selectedMangaId, setSelectedMangaId] = useState<string | null>(null);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
 
-  const mangaQuery = useQuery({
-    queryKey: ["manga-list-admin"],
-    queryFn: () => getMangaList(),
+  // Search and tag filter run on the server; wait briefly after typing before asking.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const mangaQuery = useInfiniteQuery({
+    queryKey: ["manga-list-admin", debouncedSearch, selectedTagFilter],
+    queryFn: ({ pageParam }) =>
+      getMangaPage(
+        { search: debouncedSearch, tagIds: selectedTagFilter ? [selectedTagFilter] : [] },
+        pageParam
+      ),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
 
-  const mangas: Manga[] = mangaQuery.data ?? [];
-
-  // Filtered manga list
-  const filteredMangas = useMemo(() => {
-    return mangas.filter((m) => {
-      const matchesSearch =
-        searchQuery.trim() === "" ||
-        m.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (m.titleKanji && m.titleKanji.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (m.author && m.author.toLowerCase().includes(searchQuery.toLowerCase()));
-
-      const matchesTag =
-        !selectedTagFilter ||
-        m.tags.some((t) => t.id === selectedTagFilter || t.name === selectedTagFilter);
-
-      return matchesSearch && matchesTag;
-    });
-  }, [mangas, searchQuery, selectedTagFilter]);
+  const mangas: Manga[] = mangaQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  const totalMangas = mangaQuery.data?.pages[0]?.totalCount ?? 0;
 
   // Selected manga object
   const selectedManga = useMemo(() => {
-    if (!selectedMangaId && filteredMangas.length > 0) {
-      return filteredMangas[0];
+    if (!selectedMangaId && mangas.length > 0) {
+      return mangas[0];
     }
     return mangas.find((m) => m.id === selectedMangaId) ?? null;
-  }, [mangas, selectedMangaId, filteredMangas]);
+  }, [mangas, selectedMangaId]);
 
   return (
     <div className="manga-admin-section">
@@ -54,7 +51,7 @@ export function MangaAdminSection({ tags }: MangaAdminSectionProps) {
         <div className="header-info">
           <h2>Gestión de Mangas</h2>
           <p className="muted-text">
-            {mangas.length} obras registradas • Crea, edita información y sube tomos con páginas.
+            {totalMangas} obras registradas • Crea, edita información y sube tomos con páginas.
           </p>
         </div>
 
@@ -112,7 +109,7 @@ export function MangaAdminSection({ tags }: MangaAdminSectionProps) {
         <div className="manga-catalog-sidebar">
           <div className="sidebar-catalog-header">
             <span className="catalog-count-label">
-              {filteredMangas.length} títulos encontrados
+              {totalMangas} títulos encontrados
             </span>
           </div>
 
@@ -123,7 +120,7 @@ export function MangaAdminSection({ tags }: MangaAdminSectionProps) {
             </div>
           )}
 
-          {filteredMangas.length === 0 && !mangaQuery.isLoading && (
+          {mangas.length === 0 && !mangaQuery.isLoading && (
             <div className="catalog-empty">
               <span>📭</span>
               <p>No se encontraron mangas con ese criterio.</p>
@@ -138,7 +135,7 @@ export function MangaAdminSection({ tags }: MangaAdminSectionProps) {
           )}
 
           <div className="manga-catalog-cards">
-            {filteredMangas.map((manga) => {
+            {mangas.map((manga) => {
               const isSelected = selectedManga?.id === manga.id;
               return (
                 <div
@@ -178,6 +175,19 @@ export function MangaAdminSection({ tags }: MangaAdminSectionProps) {
               );
             })}
           </div>
+
+          {mangaQuery.hasNextPage && (
+            <div className="load-more-row">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => mangaQuery.fetchNextPage()}
+                disabled={mangaQuery.isFetchingNextPage}
+              >
+                {mangaQuery.isFetchingNextPage ? "Cargando..." : "Cargar más"}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Right: Studio Workspace of Selected Manga */}
