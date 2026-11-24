@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getTags } from "@/features/tags/api";
-import { getMangaList } from "@/features/manga/api";
-import { getBooks } from "@/features/books/api";
+import { getMangaPage } from "@/features/manga/api";
+import { getBooksPage } from "@/features/books/api";
 import { AdminNavTabs, AdminTab } from "../components/AdminNavTabs";
 import { MangaAdminSection } from "../components/manga/MangaAdminSection";
 import { BookAdminSection } from "../components/books/BookAdminSection";
@@ -24,14 +24,17 @@ export function AdminPanelPage() {
     queryFn: () => getTags("BOOK"),
   });
 
+  // Only the totals are needed here, so each query loads a single page.
+  // Object keys never collide with the list queries, and the list invalidations
+  // by prefix ("manga-list-admin", "books-admin") refresh these counts too.
   const mangaQuery = useQuery({
-    queryKey: ["manga-list-admin"],
-    queryFn: () => getMangaList(),
+    queryKey: ["manga-list-admin", { count: true }],
+    queryFn: () => getMangaPage({}, null),
   });
 
   const booksQuery = useQuery({
-    queryKey: ["books-admin"],
-    queryFn: () => getBooks(),
+    queryKey: ["books-admin", { count: true }],
+    queryFn: () => getBooksPage({}, null),
   });
 
   const mangaTags = mangaTagsQuery.data ?? [];
@@ -45,8 +48,8 @@ export function AdminPanelPage() {
           activeTab={activeTab}
           onTabChange={setActiveTab}
           counts={{
-            mangas: mangaQuery.data?.length,
-            books: booksQuery.data?.length,
+            mangas: mangaQuery.data?.totalCount ?? undefined,
+            books: booksQuery.data?.totalCount ?? undefined,
             tags: mangaTags.length + bookTags.length,
           }}
         />
