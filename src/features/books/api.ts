@@ -109,6 +109,23 @@ export async function getBooks(filters: BooksFilters = {}) {
   return unwrapArray(response).map(adaptBook);
 }
 
+// Page size for catalog lists. Must stay within the backend limit (1 to 100).
+export const CATALOG_PAGE_SIZE = 50;
+
+export async function getBooksPage(filters: BooksFilters = {}, cursor: string | null = null) {
+  const params = new URLSearchParams({ limit: String(CATALOG_PAGE_SIZE) });
+  const tagIds = filters.tagIds?.filter(Boolean) ?? [];
+  if (tagIds.length > 0) {
+    params.set("tagIds", tagIds.join(","));
+  }
+  if (cursor) {
+    params.set("cursor", cursor);
+  }
+
+  const { data, nextCursor } = await apiClient.requestPage<unknown>(`/books?${params.toString()}`);
+  return { items: unwrapArray(data).map(adaptBook), nextCursor };
+}
+
 export async function getBookById(bookId: string) {
   const response = await apiClient.request<unknown>(`/books/${bookId}`);
   return adaptBook(response);
