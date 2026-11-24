@@ -1,7 +1,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useQueries, useQuery } from "@tanstack/react-query";
-import { getBooks, getBookProgress } from "@/features/books/api";
+import { useInfiniteQuery, useQueries, useQuery } from "@tanstack/react-query";
+import { getBooksPage, getBookProgress } from "@/features/books/api";
 import { getTags } from "@/features/tags/api";
 import { ErrorBox } from "@/components/ErrorBox";
 import { Loading } from "@/components/Loading";
@@ -87,18 +87,25 @@ export function BooksListPage() {
     queryFn: () => getTags("BOOK"),
   });
 
-  const booksQuery = useQuery({
+  const booksQuery = useInfiniteQuery({
     queryKey: ["books", selectedTagIds.join(",")],
-    queryFn: () => getBooks({ tagIds: selectedTagIds }),
+    queryFn: ({ pageParam }) => getBooksPage({ tagIds: selectedTagIds }, pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
 
+  const loadedBooks = useMemo(
+    () => booksQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    [booksQuery.data]
+  );
+
   const filteredBooks = useMemo(() => {
-    const list = booksQuery.data ?? [];
+    const list = loadedBooks;
     return list.filter((book) => {
       const availability = getBookAvailability(book);
       return statusFilter === "ALL" ? true : availability === statusFilter;
     });
-  }, [booksQuery.data, statusFilter]);
+  }, [loadedBooks, statusFilter]);
 
   const progressQueries = useQueries({
     queries: filteredBooks.map((book) => ({
@@ -243,6 +250,19 @@ export function BooksListPage() {
           );
         })}
       </div>
+
+      {booksQuery.hasNextPage && (
+        <div className="load-more-row">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => booksQuery.fetchNextPage()}
+            disabled={booksQuery.isFetchingNextPage}
+          >
+            {booksQuery.isFetchingNextPage ? "Cargando..." : "Cargar más"}
+          </button>
+        </div>
+      )}
     </section>
   );
 }

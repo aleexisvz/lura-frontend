@@ -5657,3 +5657,10 @@ button.mp-hero-dot.active,
     box-sizing: border-box;
   }
 }
+
+/* "Cargar más" under a paginated list */
+.load-more-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
