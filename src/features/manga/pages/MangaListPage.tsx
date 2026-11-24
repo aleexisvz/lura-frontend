@@ -1,7 +1,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useQueries, useQuery } from "@tanstack/react-query";
-import { getMangaList, getVolumes, getProgress } from "@/features/manga/api";
+import { useInfiniteQuery, useQueries, useQuery } from "@tanstack/react-query";
+import { getMangaPage, getVolumes, getProgress } from "@/features/manga/api";
 import { getTags } from "@/features/tags/api";
 import { ErrorBox } from "@/components/ErrorBox";
 import { Loading } from "@/components/Loading";
@@ -41,13 +41,20 @@ export function MangaListPage() {
     queryFn: () => getTags("MANGA"),
   });
 
-  const mangaQuery = useQuery({
+  const mangaQuery = useInfiniteQuery({
     queryKey: ["manga-list", selectedTagIds.join(",")],
-    queryFn: () => getMangaList({ tagIds: selectedTagIds }),
+    queryFn: ({ pageParam }) => getMangaPage({ tagIds: selectedTagIds }, pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
 
+  const loadedManga = useMemo(
+    () => mangaQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    [mangaQuery.data]
+  );
+
   const filteredManga = useMemo(() => {
-    const list = mangaQuery.data ?? [];
+    const list = loadedManga;
     return list.filter((item) => {
       const demoType = getDemoMangaType(item.id);
       const demoStatus = getDemoStatus(item.id);
@@ -56,7 +63,7 @@ export function MangaListPage() {
       if (statusFilter !== "ALL" && demoStatus !== statusFilter) return false;
       return true;
     });
-  }, [mangaQuery.data, statusFilter, typeFilter]);
+  }, [loadedManga, statusFilter, typeFilter]);
 
   const volumesQueries = useQueries({
     queries: filteredManga.map((manga) => ({
@@ -200,6 +207,19 @@ export function MangaListPage() {
           );
         })}
       </div>
+
+      {mangaQuery.hasNextPage && (
+        <div className="load-more-row">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => mangaQuery.fetchNextPage()}
+            disabled={mangaQuery.isFetchingNextPage}
+          >
+            {mangaQuery.isFetchingNextPage ? "Cargando..." : "Cargar más"}
+          </button>
+        </div>
+      )}
     </section>
   );
 }
