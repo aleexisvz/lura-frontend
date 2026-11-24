@@ -76,6 +76,7 @@ function adaptPage(value: unknown): MangaPage {
 
 type MangaListFilters = {
   tagIds?: string[];
+  search?: string;
 };
 
 export async function getMangaList(filters: MangaListFilters = {}) {
@@ -97,12 +98,15 @@ export async function getMangaPage(filters: MangaListFilters = {}, cursor: strin
   if (tagIds.length > 0) {
     params.set("tagIds", tagIds.join(","));
   }
+  if (filters.search) {
+    params.set("q", filters.search);
+  }
   if (cursor) {
     params.set("cursor", cursor);
   }
 
-  const { data, nextCursor } = await apiClient.requestPage<unknown>(`/manga?${params.toString()}`);
-  return { items: unwrapArray(data).map(adaptManga), nextCursor };
+  const { data, nextCursor, totalCount } = await apiClient.requestPage<unknown>(`/manga?${params.toString()}`);
+  return { items: unwrapArray(data).map(adaptManga), nextCursor, totalCount };
 }
 
 export async function getFeaturedManga(): Promise<Manga[]> {
