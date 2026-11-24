@@ -102,6 +102,7 @@ function adaptTocItem(value: unknown): BookTocItem {
 
 type BooksFilters = {
   tagIds?: string[];
+  search?: string;
 };
 
 export async function getBooks(filters: BooksFilters = {}) {
@@ -120,12 +121,15 @@ export async function getBooksPage(filters: BooksFilters = {}, cursor: string | 
   if (tagIds.length > 0) {
     params.set("tagIds", tagIds.join(","));
   }
+  if (filters.search) {
+    params.set("q", filters.search);
+  }
   if (cursor) {
     params.set("cursor", cursor);
   }
 
-  const { data, nextCursor } = await apiClient.requestPage<unknown>(`/books?${params.toString()}`);
-  return { items: unwrapArray(data).map(adaptBook), nextCursor };
+  const { data, nextCursor, totalCount } = await apiClient.requestPage<unknown>(`/books?${params.toString()}`);
+  return { items: unwrapArray(data).map(adaptBook), nextCursor, totalCount };
 }
 
 export async function getBookById(bookId: string) {

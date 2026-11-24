@@ -45,13 +45,21 @@ class ApiClient {
   }
 
   /**
-   * Like request, and also returns the X-Next-Cursor header that paginated
-   * lists send when another page exists (null on the last page).
+   * Like request, and also returns the pagination headers that paginated lists
+   * send: the next cursor (null on the last page) and the total number of items.
    */
-  async requestPage<T>(path: string, options: RequestOptions = {}): Promise<{ data: T; nextCursor: string | null }> {
+  async requestPage<T>(
+    path: string,
+    options: RequestOptions = {}
+  ): Promise<{ data: T; nextCursor: string | null; totalCount: number | null }> {
     const response = await this.execute(path, options);
     const data = (await response.json()) as T;
-    return { data, nextCursor: response.headers.get("X-Next-Cursor") };
+    const total = response.headers.get("X-Total-Count");
+    return {
+      data,
+      nextCursor: response.headers.get("X-Next-Cursor"),
+      totalCount: total === null ? null : Number(total),
+    };
   }
 
   private async execute(path: string, options: RequestOptions): Promise<Response> {
