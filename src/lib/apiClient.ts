@@ -34,6 +34,27 @@ class ApiClient {
    * automatic Bearer token injection, and unified error mapping.
    */
   async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+    const response = await this.execute(path, options);
+
+    // Return undefined for HTTP 204 No Content responses to avoid JSON parsing errors
+    if (response.status === 204) {
+      return undefined as T;
+    }
+
+    return (await response.json()) as T;
+  }
+
+  /**
+   * Like request, and also returns the X-Next-Cursor header that paginated
+   * lists send when another page exists (null on the last page).
+   */
+  async requestPage<T>(path: string, options: RequestOptions = {}): Promise<{ data: T; nextCursor: string | null }> {
+    const response = await this.execute(path, options);
+    const data = (await response.json()) as T;
+    return { data, nextCursor: response.headers.get("X-Next-Cursor") };
+  }
+
+  private async execute(path: string, options: RequestOptions): Promise<Response> {
     const { auth = true, body, headers, ...rest } = options;
     const token = getToken();
     const finalHeaders = new Headers(headers);
@@ -70,12 +91,7 @@ class ApiClient {
       throw new ApiError(await this.parseError(response), response.status);
     }
 
-    // Return undefined for HTTP 204 No Content responses to avoid JSON parsing errors
-    if (response.status === 204) {
-      return undefined as T;
-    }
-
-    return (await response.json()) as T;
+    return response;
   }
 
   async fetchBlob(path: string, options: RequestOptions = {}) {
