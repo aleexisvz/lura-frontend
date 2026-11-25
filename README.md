@@ -134,7 +134,7 @@ src/
 | `/register` | Público | Formulario de registro de usuario |
 | `/` | Autenticado | Inicio con tarjetas de "Continuar leyendo" y progreso general |
 | `/manga` | Autenticado | Catálogo de mangas con filtros y buscador |
-| `/manga/:mangaId` | Autenticado | Ficha técnica del manga, lista de volúmenes y estado de completitud |
+| `/manga/:mangaId` | Autenticado | Ficha técnica del manga, lista de volúmenes y estado de completitud (on phones the volumes are shown 10 at a time with a "show more" button) |
 | `/reader/:mangaId/:volumeId/:pageNumber` | Autenticado | Lector de manga con precarga de páginas, tracking y atajos de teclado |
 | `/books` | Autenticado | Catálogo de libros digitales |
 | `/books/:bookId` | Autenticado | Detalle del libro, sinopsis y botón de lectura/reanudación |
