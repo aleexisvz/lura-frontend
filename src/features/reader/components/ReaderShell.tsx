@@ -164,7 +164,7 @@ export function ReaderShell(props: ReaderShellProps) {
                 type="button"
                 className={`reader-zoom-badge${zoom === 100 ? " is-default" : ""}`}
                 onClick={onResetZoom}
-                title="Doble clic en la imagen o clic aquí para ajustar a pantalla (100%)"
+                title="Doble clic o doble toque en la imagen, o clic aquí, para ajustar a pantalla (100%)"
               >
                 {zoom}%
               </button>
@@ -179,8 +179,8 @@ export function ReaderShell(props: ReaderShellProps) {
             <h2>Atajos y Navegación</h2>
             <ul>
               <li>Flechas o Espacio: avanzar / retroceder página</li>
-              <li>Doble clic: alternar zoom y ajuste de pantalla</li>
-              <li>Arrastrar con el mouse: desplazar la vista en zoom</li>
+              <li>Doble clic o doble toque: acercar al punto tocado y volver al ajuste de pantalla</li>
+              <li>Arrastrar con el mouse o el dedo: desplazar la vista en zoom</li>
               <li>F: entrar / salir de pantalla completa</li>
             </ul>
             <button type="button" className="reader-close-button" onClick={() => setShowInfo(false)}>

@@ -20,6 +20,14 @@ import { useAFKTimer } from "@/features/reader/hooks/useAFKTimer";
 
 const NAVIGATION_INTERVAL_MS = 2000;
 
+// Zoom level reached by a double click or double tap, in percent.
+const DOUBLE_TAP_ZOOM = 250;
+const DOUBLE_TAP_MS = 300;
+const DOUBLE_TAP_DISTANCE_PX = 30;
+// A touch that moves more than this is a drag, not a tap.
+const TAP_MOVE_TOLERANCE_PX = 10;
+const TOUCH_DBLCLICK_GUARD_MS = 500;
+
 export function MangaReaderPage() {
   const navigate = useNavigate();
   const { mangaId = "", volumeId = "", pageNumber = "1" } = useParams();
@@ -302,27 +310,46 @@ export function MangaReaderPage() {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef({ startX: 0, startY: 0, panX: 0, panY: 0 });
+  const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
+  const lastTapRef = useRef<{ time: number; x: number; y: number } | null>(null);
+  const lastTouchTimeRef = useRef(0);
 
   useEffect(() => {
     setZoom(100);
     setPan({ x: 0, y: 0 });
   }, [currentPage]);
 
-  const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  // Zooms in keeping the tapped point under the finger/cursor, or fits the page back to the screen.
+  const toggleZoomAt = (stage: HTMLElement, clientX: number, clientY: number) => {
     if (zoom !== 100) {
       setZoom(100);
       setPan({ x: 0, y: 0 });
-    } else {
-      setZoom(180);
-      const rect = e.currentTarget.getBoundingClientRect();
-      const clickX = e.clientX - rect.left - rect.width / 2;
-      const clickY = e.clientY - rect.top - rect.height / 2;
-      setPan({ x: -clickX * 0.7, y: -clickY * 0.7 });
+      return;
     }
+
+    const rect = stage.getBoundingClientRect();
+    const offsetX = clientX - rect.left - rect.width / 2;
+    const offsetY = clientY - rect.top - rect.height / 2;
+    const factor = 1 - DOUBLE_TAP_ZOOM / 100;
+    setZoom(DOUBLE_TAP_ZOOM);
+    setPan({ x: offsetX * factor, y: offsetY * factor });
   };
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (zoom <= 100 || e.button !== 0) return;
+  const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Touch double taps are handled on pointer up; ignore the synthetic dblclick that may follow.
+    if (Date.now() - lastTouchTimeRef.current < TOUCH_DBLCLICK_GUARD_MS) return;
+    toggleZoomAt(e.currentTarget, e.clientX, e.clientY);
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    pointerDownRef.current = { x: e.clientX, y: e.clientY };
+    if (zoom <= 100) return;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // The pointer may already be gone; dragging still works without capture.
+    }
     setIsDragging(true);
     dragStartRef.current = {
       startX: e.clientX,
@@ -332,7 +359,7 @@ export function MangaReaderPage() {
     };
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isDragging || zoom <= 100) return;
     const dx = e.clientX - dragStartRef.current.startX;
     const dy = e.clientY - dragStartRef.current.startY;
@@ -342,8 +369,41 @@ export function MangaReaderPage() {
     });
   };
 
-  const handleMouseUp = () => {
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     setIsDragging(false);
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+
+    const down = pointerDownRef.current;
+    pointerDownRef.current = null;
+    // The mouse uses the native double click event.
+    if (e.pointerType === "mouse") return;
+
+    lastTouchTimeRef.current = Date.now();
+    const isTap = down !== null && Math.hypot(e.clientX - down.x, e.clientY - down.y) <= TAP_MOVE_TOLERANCE_PX;
+    if (!isTap) {
+      lastTapRef.current = null;
+      return;
+    }
+
+    const last = lastTapRef.current;
+    const isDoubleTap =
+      last !== null &&
+      e.timeStamp - last.time <= DOUBLE_TAP_MS &&
+      Math.hypot(e.clientX - last.x, e.clientY - last.y) <= DOUBLE_TAP_DISTANCE_PX;
+    if (isDoubleTap) {
+      lastTapRef.current = null;
+      toggleZoomAt(e.currentTarget, e.clientX, e.clientY);
+    } else {
+      lastTapRef.current = { time: e.timeStamp, x: e.clientX, y: e.clientY };
+    }
+  };
+
+  const handlePointerCancel = () => {
+    setIsDragging(false);
+    pointerDownRef.current = null;
+    lastTapRef.current = null;
   };
 
   const handleResetZoom = useCallback(() => {
@@ -397,10 +457,10 @@ export function MangaReaderPage() {
       <div
         className="reader-stage"
         onDoubleClick={handleDoubleClick}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
         style={{
           cursor: zoom > 100 ? (isDragging ? "grabbing" : "grab") : "zoom-in",
           userSelect: "none",
