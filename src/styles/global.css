@@ -2868,16 +2868,57 @@ button.mp-hero-dot.active,
   font-size: 0.82rem;
 }
 
-.volume-load-more {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.6rem;
-  margin-top: 1.25rem;
+/* Keeps the top of the volumes card below the sticky topbar when the pager scrolls to it */
+.manga-volumes-card {
+  scroll-margin-top: 7.5rem;
 }
 
-.volume-load-more p {
-  margin: 0;
+.volume-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.volume-pager-chip {
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-full);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.volume-pager-chip.active {
+  background: var(--accent-gold);
+  border-color: var(--accent-gold);
+  color: #000000;
+}
+
+.volume-pager-step {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: var(--radius-full);
+  font-size: 1.3rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.volume-pager-step:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.volume-pager-select {
+  width: auto;
+  min-width: 0;
+  flex: 1 1 auto;
+  max-width: 260px;
+  height: 40px;
+  padding: 0 0.85rem;
+  text-align: center;
+  text-align-last: center;
 }
 
 .volume-poster-grid {
