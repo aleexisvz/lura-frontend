@@ -3774,6 +3774,49 @@ button.mp-hero-dot.active,
   filter: grayscale(1);
 }
 
+/* Reader controls on small screens: page navigation on the first row, zoom on a second row */
+@media (max-width: 640px) {
+  .reader-viewport {
+    padding-bottom: 118px;
+  }
+
+  .reader-image,
+  .reader-page-image {
+    max-height: calc(100vh - 190px);
+  }
+
+  .reader-bottombar,
+  .reader-bottom-dock {
+    width: calc(100vw - 1.5rem);
+    max-width: none;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 0.5rem;
+    padding: 0.5rem 0.85rem;
+    border-radius: var(--radius-lg);
+    bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .reader-dock-divider {
+    display: none;
+  }
+
+  .reader-progress-wrap {
+    min-width: 0;
+  }
+
+  .reader-zoom-group {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+
+  .reader-zoom-slider {
+    flex: 1;
+    width: auto;
+    max-width: 220px;
+  }
+}
+
 /* Modals & AFK overlay */
 .reader-afk-overlay,
 .reader-info-backdrop {
