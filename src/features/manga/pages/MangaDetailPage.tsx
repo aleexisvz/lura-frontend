@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { getMangaById, getMangaReaders, getProgress, getVolumeCompletion, getVolumes } from "@/features/manga/api";
@@ -8,6 +8,12 @@ import { Loading } from "@/components/Loading";
 import { Volume } from "@/types/domain";
 import { ProtectedImage } from "@/components/ProtectedImage";
 import { getDemoMangaType, getDemoStatus } from "@/lib/demoFilters";
+import { useMediaQuery } from "@/lib/useMediaQuery";
+
+// On phones the volume list is shown in pages: every card loads a cover and asks the API whether
+// its volume is completed, which is too much to do at once for a series with dozens of volumes.
+const MOBILE_QUERY = "(max-width: 768px)";
+const MOBILE_VOLUMES_PAGE_SIZE = 10;
 
 function VolumePosterCard({
   mangaId,
@@ -130,20 +136,55 @@ export function MangaDetailPage() {
     enabled: Boolean(mangaId),
   });
 
+  const orderedVolumes = useMemo(() => {
+    const source = [...(volumesQuery.data ?? [])];
+    source.sort((a, b) => {
+      const aNumber = a.number ?? 0;
+      const bNumber = b.number ?? 0;
+      return volumeOrder === "ASC" ? aNumber - bNumber : bNumber - aNumber;
+    });
+    return source;
+  }, [volumesQuery.data, volumeOrder]);
+
+  const isMobile = useMediaQuery(MOBILE_QUERY);
+  const [mobileVisibleCount, setMobileVisibleCount] = useState(MOBILE_VOLUMES_PAGE_SIZE);
+
+  useEffect(() => {
+    setMobileVisibleCount(MOBILE_VOLUMES_PAGE_SIZE);
+  }, [mangaId, volumeOrder]);
+
+  const visibleVolumes = useMemo(
+    () => (isMobile ? orderedVolumes.slice(0, mobileVisibleCount) : orderedVolumes),
+    [isMobile, orderedVolumes, mobileVisibleCount]
+  );
+  const hiddenVolumesCount = orderedVolumes.length - visibleVolumes.length;
+
+  // Completion is fetched once per volume, so only ask for the volumes on screen, plus the one being
+  // read because the continue button needs it.
+  const completionVolumes = useMemo(() => {
+    const currentVolumeId = progressQuery.data?.volumeId;
+    if (!currentVolumeId || visibleVolumes.some((volume) => volume.id === currentVolumeId)) {
+      return visibleVolumes;
+    }
+    const currentVolume = (volumesQuery.data ?? []).find((volume) => volume.id === currentVolumeId);
+    return currentVolume ? [...visibleVolumes, currentVolume] : visibleVolumes;
+  }, [visibleVolumes, progressQuery.data?.volumeId, volumesQuery.data]);
+
   const completionQueries = useQueries({
-    queries: (volumesQuery.data ?? []).map((volume) => ({
+    queries: completionVolumes.map((volume) => ({
       queryKey: ["volume-completion", mangaId, volume.id],
       queryFn: () => getVolumeCompletion(mangaId, volume.id),
       enabled: Boolean(mangaId && volumesQuery.data),
     })),
   });
 
-  const completionMap = useMemo(() => {
-    const volumes = volumesQuery.data ?? [];
-    return Object.fromEntries(
-      volumes.map((volume, i) => [volume.id, completionQueries[i]?.data?.completed ?? false])
-    );
-  }, [volumesQuery.data, completionQueries]);
+  const completionMap = useMemo(
+    () =>
+      Object.fromEntries(
+        completionVolumes.map((volume, i) => [volume.id, completionQueries[i]?.data?.completed ?? false])
+      ),
+    [completionVolumes, completionQueries]
+  );
 
   const inProgressPageByVolumeId = useMemo(() => {
     const entries = continueReadingQuery.data ?? [];
@@ -170,16 +211,6 @@ export function MangaDetailPage() {
     .split(/\n{2,}/)
     .map((segment) => segment.trim())
     .filter(Boolean);
-
-  const orderedVolumes = useMemo(() => {
-    const source = [...(volumesQuery.data ?? [])];
-    source.sort((a, b) => {
-      const aNumber = a.number ?? 0;
-      const bNumber = b.number ?? 0;
-      return volumeOrder === "ASC" ? aNumber - bNumber : bNumber - aNumber;
-    });
-    return source;
-  }, [volumesQuery.data, volumeOrder]);
 
   const continueButtonInfo = useMemo(() => {
     const progress = progressQuery.data;
@@ -386,7 +417,7 @@ export function MangaDetailPage() {
         {volumesQuery.isError && <ErrorBox error={volumesQuery.error} />}
 
         <div className="volume-poster-grid">
-          {orderedVolumes.map((volume: Volume) => {
+          {visibleVolumes.map((volume: Volume) => {
             const isCompleted = Boolean(
               completionMap[volume.id] ||
               (progressQuery.data?.volumeId === volume.id &&
@@ -412,6 +443,23 @@ export function MangaDetailPage() {
             );
           })}
         </div>
+
+        {isMobile && orderedVolumes.length > MOBILE_VOLUMES_PAGE_SIZE && (
+          <div className="volume-load-more">
+            <p className="muted-text">
+              Mostrando {visibleVolumes.length} de {orderedVolumes.length}
+            </p>
+            {hiddenVolumesCount > 0 && (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setMobileVisibleCount((count) => count + MOBILE_VOLUMES_PAGE_SIZE)}
+              >
+                Mostrar {Math.min(MOBILE_VOLUMES_PAGE_SIZE, hiddenVolumesCount)} más
+              </button>
+            )}
+          </div>
+        )}
       </article>
 
       <article className="card content-readers-card">
