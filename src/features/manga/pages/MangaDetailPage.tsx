@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { getMangaById, getMangaReaders, getProgress, getVolumeCompletion, getVolumes } from "@/features/manga/api";
@@ -9,11 +9,26 @@ import { Volume } from "@/types/domain";
 import { ProtectedImage } from "@/components/ProtectedImage";
 import { getDemoMangaType, getDemoStatus } from "@/lib/demoFilters";
 import { useMediaQuery } from "@/lib/useMediaQuery";
+import { VolumePager } from "@/features/manga/components/VolumePager";
 
 // On phones the volume list is shown in pages: every card loads a cover and asks the API whether
 // its volume is completed, which is too much to do at once for a series with dozens of volumes.
 const MOBILE_QUERY = "(max-width: 768px)";
 const MOBILE_VOLUMES_PAGE_SIZE = 10;
+
+// "11–20" from the volume numbers of a page, in the order they are shown. Falls back to the position in
+// the list when a volume has no usable number (for example an extra).
+function getVolumeRangeLabel(volumes: Volume[], offset: number) {
+  const first = volumes[0];
+  const last = volumes[volumes.length - 1];
+  if (!first || !last) {
+    return "";
+  }
+  if (first.number > 0 && last.number > 0) {
+    return first.number === last.number ? `${first.number}` : `${first.number}–${last.number}`;
+  }
+  return volumes.length === 1 ? `${offset + 1}` : `${offset + 1}–${offset + volumes.length}`;
+}
 
 function VolumePosterCard({
   mangaId,
@@ -147,17 +162,58 @@ export function MangaDetailPage() {
   }, [volumesQuery.data, volumeOrder]);
 
   const isMobile = useMediaQuery(MOBILE_QUERY);
-  const [mobileVisibleCount, setMobileVisibleCount] = useState(MOBILE_VOLUMES_PAGE_SIZE);
+  const volumesCardRef = useRef<HTMLElement>(null);
+
+  // Zero-based page chosen by the user. While it is null the page that holds the volume being read is
+  // shown, which also follows along once the progress finishes loading.
+  const [selectedPage, setSelectedPage] = useState<number | null>(null);
 
   useEffect(() => {
-    setMobileVisibleCount(MOBILE_VOLUMES_PAGE_SIZE);
-  }, [mangaId, volumeOrder]);
+    setSelectedPage(null);
+  }, [mangaId]);
+
+  const pageCount = Math.max(1, Math.ceil(orderedVolumes.length / MOBILE_VOLUMES_PAGE_SIZE));
+
+  const defaultPage = useMemo(() => {
+    const currentVolumeId = progressQuery.data?.volumeId;
+    const index = currentVolumeId ? orderedVolumes.findIndex((volume) => volume.id === currentVolumeId) : -1;
+    return index === -1 ? 0 : Math.floor(index / MOBILE_VOLUMES_PAGE_SIZE);
+  }, [orderedVolumes, progressQuery.data?.volumeId]);
+
+  const currentPage = Math.min(selectedPage ?? defaultPage, pageCount - 1);
 
   const visibleVolumes = useMemo(
-    () => (isMobile ? orderedVolumes.slice(0, mobileVisibleCount) : orderedVolumes),
-    [isMobile, orderedVolumes, mobileVisibleCount]
+    () =>
+      isMobile
+        ? orderedVolumes.slice(
+            currentPage * MOBILE_VOLUMES_PAGE_SIZE,
+            (currentPage + 1) * MOBILE_VOLUMES_PAGE_SIZE
+          )
+        : orderedVolumes,
+    [isMobile, orderedVolumes, currentPage]
   );
-  const hiddenVolumesCount = orderedVolumes.length - visibleVolumes.length;
+
+  const pageLabels = useMemo(
+    () =>
+      Array.from({ length: pageCount }, (_, page) =>
+        getVolumeRangeLabel(
+          orderedVolumes.slice(page * MOBILE_VOLUMES_PAGE_SIZE, (page + 1) * MOBILE_VOLUMES_PAGE_SIZE),
+          page * MOBILE_VOLUMES_PAGE_SIZE
+        )
+      ),
+    [orderedVolumes, pageCount]
+  );
+
+  const changePage = (page: number) => {
+    setSelectedPage(page);
+    // Without this, pressing a page at the bottom of the list leaves you looking at the end of the new page.
+    volumesCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const changeOrder = (order: "ASC" | "DESC") => {
+    setVolumeOrder(order);
+    setSelectedPage(0);
+  };
 
   // Completion is fetched once per volume, so only ask for the volumes on screen, plus the one being
   // read because the continue button needs it.
@@ -398,14 +454,14 @@ export function MangaDetailPage() {
         </article>
       )}
 
-      <article className="card manga-volumes-card">
+      <article className="card manga-volumes-card" ref={volumesCardRef}>
         <div className="manga-volumes-toolbar">
           <h2>{orderedVolumes.length} Capitulos</h2>
           <label className="volume-order-control">
             <span>Ordenar por:</span>
             <select
               value={volumeOrder}
-              onChange={(event) => setVolumeOrder(event.target.value as "ASC" | "DESC")}
+              onChange={(event) => changeOrder(event.target.value as "ASC" | "DESC")}
             >
               <option value="ASC">Primeros</option>
               <option value="DESC">Ultimos</option>
@@ -415,6 +471,8 @@ export function MangaDetailPage() {
 
         {volumesQuery.isLoading && <Loading text="Cargando volumenes..." />}
         {volumesQuery.isError && <ErrorBox error={volumesQuery.error} />}
+
+        {isMobile && <VolumePager labels={pageLabels} page={currentPage} onChange={changePage} />}
 
         <div className="volume-poster-grid">
           {visibleVolumes.map((volume: Volume) => {
@@ -444,22 +502,7 @@ export function MangaDetailPage() {
           })}
         </div>
 
-        {isMobile && orderedVolumes.length > MOBILE_VOLUMES_PAGE_SIZE && (
-          <div className="volume-load-more">
-            <p className="muted-text">
-              Mostrando {visibleVolumes.length} de {orderedVolumes.length}
-            </p>
-            {hiddenVolumesCount > 0 && (
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => setMobileVisibleCount((count) => count + MOBILE_VOLUMES_PAGE_SIZE)}
-              >
-                Mostrar {Math.min(MOBILE_VOLUMES_PAGE_SIZE, hiddenVolumesCount)} más
-              </button>
-            )}
-          </div>
-        )}
+        {isMobile && <VolumePager labels={pageLabels} page={currentPage} onChange={changePage} />}
       </article>
 
       <article className="card content-readers-card">
