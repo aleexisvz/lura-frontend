@@ -2343,6 +2343,19 @@ button.mp-hero-dot.active,
   grid-template-columns: minmax(240px, 1fr) minmax(140px, 200px) 150px;
 }
 
+/* Declared after .books-filters so they are not overridden by it */
+@media (max-width: 900px) {
+  .books-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 540px) {
+  .books-filters {
+    grid-template-columns: 1fr;
+  }
+}
+
 .filter-control {
   display: grid;
   gap: 0.35rem;
