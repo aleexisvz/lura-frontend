@@ -313,6 +313,24 @@ export function MangaReaderPage() {
   const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
   const lastTapRef = useRef<{ time: number; x: number; y: number } | null>(null);
   const lastTouchTimeRef = useRef(0);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
+
+  // Keeps the zoomed page covering the stage: on an axis where the scaled page is larger than the
+  // stage it cannot be dragged past its edges, otherwise it stays centered.
+  const clampPan = (next: { x: number; y: number }, zoomPercent: number) => {
+    const stage = stageRef.current;
+    const image = imageRef.current;
+    if (!stage || !image) return next;
+
+    const scale = zoomPercent / 100;
+    const limitX = Math.max(0, (image.offsetWidth * scale - stage.clientWidth) / 2);
+    const limitY = Math.max(0, (image.offsetHeight * scale - stage.clientHeight) / 2);
+    return {
+      x: Math.min(limitX, Math.max(-limitX, next.x)),
+      y: Math.min(limitY, Math.max(-limitY, next.y)),
+    };
+  };
 
   useEffect(() => {
     setZoom(100);
@@ -332,7 +350,7 @@ export function MangaReaderPage() {
     const offsetY = clientY - rect.top - rect.height / 2;
     const factor = 1 - DOUBLE_TAP_ZOOM / 100;
     setZoom(DOUBLE_TAP_ZOOM);
-    setPan({ x: offsetX * factor, y: offsetY * factor });
+    setPan(clampPan({ x: offsetX * factor, y: offsetY * factor }, DOUBLE_TAP_ZOOM));
   };
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -363,10 +381,15 @@ export function MangaReaderPage() {
     if (!isDragging || zoom <= 100) return;
     const dx = e.clientX - dragStartRef.current.startX;
     const dy = e.clientY - dragStartRef.current.startY;
-    setPan({
-      x: dragStartRef.current.panX + dx,
-      y: dragStartRef.current.panY + dy,
-    });
+    setPan(
+      clampPan(
+        {
+          x: dragStartRef.current.panX + dx,
+          y: dragStartRef.current.panY + dy,
+        },
+        zoom
+      )
+    );
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -425,9 +448,7 @@ export function MangaReaderPage() {
       zoom={zoom}
       onZoomChange={(newZoom) => {
         setZoom(newZoom);
-        if (newZoom === 100) {
-          setPan({ x: 0, y: 0 });
-        }
+        setPan((current) => clampPan(current, newZoom));
       }}
       onResetZoom={handleResetZoom}
       onClose={async () => {
@@ -456,6 +477,7 @@ export function MangaReaderPage() {
 
       <div
         className="reader-stage"
+        ref={stageRef}
         onDoubleClick={handleDoubleClick}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -479,6 +501,7 @@ export function MangaReaderPage() {
               src={imageUrl}
               alt={`Página ${currentPage}`}
               className="reader-image"
+              ref={imageRef}
               draggable={false}
             />
           </div>
