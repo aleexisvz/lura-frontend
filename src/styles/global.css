@@ -1221,7 +1221,6 @@ select {
   padding: 0.3rem 0.7rem;
   background: rgba(0, 0, 0, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(8px);
   border-radius: var(--radius-sm);
   font-size: 0.78rem;
   font-weight: 800;
@@ -2544,7 +2543,6 @@ button.mp-hero-dot.active,
   font-weight: 700;
   color: var(--accent-gold);
   z-index: 10;
-  backdrop-filter: blur(8px);
 }
 
 .manga-hover-layer,
@@ -2624,23 +2622,23 @@ button.mp-hero-dot.active,
   font-size: 0.7rem;
   font-weight: 700;
   z-index: 10;
-  backdrop-filter: blur(8px);
 }
 
+/* The status colors are translucent and sit on top of covers; the dark base keeps them readable without a backdrop blur */
 .book-status-badge.is-ready {
-  background: var(--success-bg);
+  background: linear-gradient(var(--success-bg), var(--success-bg)), rgba(0, 0, 0, 0.8);
   border: 1px solid var(--success-border);
   color: var(--success);
 }
 
 .book-status-badge.is-processing {
-  background: var(--accent-gold-surface);
+  background: linear-gradient(var(--accent-gold-surface), var(--accent-gold-surface)), rgba(0, 0, 0, 0.8);
   border: 1px solid rgba(245, 158, 11, 0.3);
   color: var(--accent-gold);
 }
 
 .book-status-badge.is-failed {
-  background: var(--danger-bg);
+  background: linear-gradient(var(--danger-bg), var(--danger-bg)), rgba(0, 0, 0, 0.8);
   border: 1px solid var(--danger-border);
   color: var(--danger);
 }
@@ -2904,7 +2902,6 @@ button.mp-hero-dot.active,
   font-size: 0.68rem;
   font-weight: 700;
   color: var(--text-secondary);
-  backdrop-filter: blur(8px);
   z-index: 5;
   display: inline-flex;
   align-items: center;
