@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { getMangaById, getMangaReaders, getProgress, getVolumeCompletion, getVolumes } from "@/features/manga/api";
 import { getContinueReading } from "@/features/reading/api";
 import { ErrorBox } from "@/components/ErrorBox";
@@ -37,7 +37,9 @@ function getVolumeRangeLabel(volumes: Volume[], offset: number) {
   return volumes.length === 1 ? `${offset + 1}` : `${offset + 1}–${offset + volumes.length}`;
 }
 
-function VolumePosterCard({
+// Memoized: the page re-renders every time one of its queries answers, and without this every card
+// would render again even though its props did not change.
+const VolumePosterCard = memo(function VolumePosterCard({
   mangaId,
   volume,
   inProgressPage,
@@ -92,7 +94,7 @@ function VolumePosterCard({
       </div>
     </Link>
   );
-}
+});
 
 export function MangaDetailPage() {
   const { mangaId = "" } = useParams();
@@ -202,21 +204,25 @@ export function MangaDetailPage() {
     return currentVolume ? [...visibleVolumes, currentVolume] : visibleVolumes;
   }, [visibleVolumes, progressQuery.data?.volumeId, volumesQuery.data]);
 
-  const completionQueries = useQueries({
+  // `combine` reduces the answers to a map of booleans, and React Query keeps the same object when the
+  // content did not change. Most volumes answer "not completed", so the page no longer re-renders once
+  // per answer, only when a volume turns out to be completed.
+  const combineCompletion = useCallback(
+    (results: UseQueryResult<Awaited<ReturnType<typeof getVolumeCompletion>>>[]) =>
+      Object.fromEntries(
+        completionVolumes.map((volume, i) => [volume.id, results[i]?.data?.completed ?? false])
+      ) as Record<string, boolean>,
+    [completionVolumes]
+  );
+
+  const completionMap = useQueries({
     queries: completionVolumes.map((volume) => ({
       queryKey: ["volume-completion", mangaId, volume.id],
       queryFn: () => getVolumeCompletion(mangaId, volume.id),
       enabled: Boolean(mangaId && volumesQuery.data),
     })),
+    combine: combineCompletion,
   });
-
-  const completionMap = useMemo(
-    () =>
-      Object.fromEntries(
-        completionVolumes.map((volume, i) => [volume.id, completionQueries[i]?.data?.completed ?? false])
-      ),
-    [completionVolumes, completionQueries]
-  );
 
   const inProgressPageByVolumeId = useMemo(() => {
     const entries = continueReadingQuery.data ?? [];
