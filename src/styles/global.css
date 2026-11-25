@@ -1656,14 +1656,19 @@ button.mp-hero-dot.active,
 /* 3. MAIN PORTAL LAYOUT */
 .mp-portal-layout {
   display: grid;
-  grid-template-columns: 1fr 340px;
+  grid-template-columns: minmax(0, 1fr) 340px;
   gap: 2rem;
   align-items: start;
 }
 
+/* Let the columns shrink below their content so wide children (e.g. the scrolling genre chips) cannot stretch the grid */
+.mp-portal-layout > * {
+  min-width: 0;
+}
+
 @media (max-width: 1080px) {
   .mp-portal-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
