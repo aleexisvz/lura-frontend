@@ -443,6 +443,58 @@ select {
   transform: scale(1.05);
 }
 
+/* Topbar on small screens: brand and actions on the first row, nav on a second scrollable row */
+@media (max-width: 768px) {
+  .topbar-inner {
+    flex-wrap: wrap;
+    gap: 0.6rem 0.75rem;
+    padding: 0.7rem 1rem;
+  }
+
+  .brand {
+    font-size: 1.25rem;
+    margin-right: auto;
+  }
+
+  .brand-badge {
+    display: none;
+  }
+
+  .topbar-actions {
+    gap: 0.6rem;
+  }
+
+  .topbar-avatar-link,
+  .topbar-search-button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .topbar-actions .secondary-button {
+    padding: 0.4rem 0.85rem;
+    font-size: 0.85rem;
+  }
+
+  .nav {
+    order: 3;
+    flex: 1 1 100%;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav a {
+    flex: 1 0 auto;
+    text-align: center;
+    white-space: nowrap;
+    padding: 0.45rem 0.9rem;
+  }
+}
+
 /* User Search Modal */
 .user-search-backdrop {
   position: fixed;
@@ -629,6 +681,12 @@ select {
   padding: 1.5rem;
   width: 100%;
   flex: 1;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
 }
 
 /* Grids & Cards */
