@@ -5,3 +5,7 @@ dist
 *.log
 *.tsbuildinfo
 
+
+# Emitted by `tsc -b` from vite.config.ts; Vite would load the stale .js first
+vite.config.js
+vite.config.d.ts
