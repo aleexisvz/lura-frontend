@@ -3184,9 +3184,10 @@ button.mp-hero-dot.active,
 
 .book-progress-metrics {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.25rem 0.75rem;
 }
 
 .book-progress-percent-box {
@@ -3215,6 +3216,7 @@ button.mp-hero-dot.active,
 .book-progress-page-text {
   font-size: 0.86rem;
   color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .book-progress-page-text strong {
