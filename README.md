@@ -66,6 +66,27 @@ npm run build
 
 ---
 
+## Progressive Web App (PWA)
+
+Lura can be installed as an app on desktop and mobile. `vite-plugin-pwa` generates the web manifest and the service worker at build time; the icons live in `public/`.
+
+- **What is cached:** the app shell (HTML, JS, CSS, icons), CDN images (up to 150 entries for 14 days) and Google Fonts. API requests are never cached, because they carry authenticated, per-user data.
+- **Updates:** the service worker updates itself. A new version is picked up the next time the app is opened after it has been deployed.
+- **Testing locally:** the service worker is only generated in production builds, not in `npm run dev`.
+
+```bash
+npm run build
+npm run preview
+```
+
+Then open `http://localhost:4173` and check the manifest and service worker in the browser DevTools (Application tab).
+
+- **Installing on a phone:** browsers only register service workers on secure origins (HTTPS or `localhost`). A LAN address such as `http://192.168.x.x:4173` is not secure, so the app will not be installable from it. Deploy the frontend over HTTPS to install it.
+- **Backend requirement:** an HTTPS frontend can only call an HTTPS backend, and a phone cannot reach `localhost`. Set `VITE_API_BASE_URL` to a public HTTPS URL of `lura-backend` before building.
+- **Install:** on Android (Chrome) use "Install app"; on iOS (Safari) use Share → "Add to Home Screen".
+
+---
+
 ## Estructura del Proyecto
 
 ```

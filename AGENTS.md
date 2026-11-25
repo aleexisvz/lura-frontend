@@ -10,6 +10,7 @@ This repository is the **frontend SPA**.
 - TanStack Query (React Query) for server state
 - React Router for navigation
 - Vanilla CSS (global stylesheet in `src/styles/global.css`)
+- PWA via `vite-plugin-pwa` (configured in `vite.config.ts`, icons in `public/`). Never add API routes to the service worker runtime cache: API responses are authenticated and per-user.
 
 ## Architecture
 - Feature-based folder structure under `src/features/`.
