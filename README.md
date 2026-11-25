@@ -129,6 +129,7 @@ src/
 ### 1. Lector de Manga
 - **Precarga Inteligente**: Precarga en segundo plano 3 páginas hacia adelante y 1 hacia atrás mediante elementos `<img>` ocultos para transiciones instantáneas sin esperas de red.
 - **Protección contra Clics Rápidos (Cooldown)**: Bloqueo suave de navegación rápida para evitar condiciones de carrera o peticiones desordenadas.
+- **Double Click / Double Tap Zoom**: Zooms to 250% on the clicked or tapped point and fits the page back to the screen on the next double click or tap. While zoomed, the page can be dragged with the mouse or a finger. The slider and the +/- buttons keep working as before.
 - **Detección de Inactividad (AFK)**: Pausa automática de la sesión de lectura tras periodos prolongados de inactividad para registrar el tiempo real de lectura.
 - **Cierre Fiable de Sesión**: Utiliza `keepalive` en peticiones `fetch` durante el desmontaje del componente o cierre de pestaña para garantizar el registro del tiempo de lectura y otorgamiento de XP.
 
