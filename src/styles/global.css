@@ -967,7 +967,7 @@ select {
 
 @media (max-width: 900px) {
   .mp-hero-container {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     padding: 1.75rem 1.25rem 2.75rem;
     height: auto;
   }
@@ -1335,7 +1335,7 @@ button.mp-hero-dot.active,
 /* 0. TOP PROMOS ROW (Continue Reading 70% + Hot Weekend 30%) */
 .mp-top-promos-row {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.25rem;
   width: 100%;
 }
@@ -1346,7 +1346,7 @@ button.mp-hero-dot.active,
 
 @media (max-width: 1080px) {
   .mp-top-promos-row.has-both {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
