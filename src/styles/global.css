@@ -2700,7 +2700,7 @@ button.mp-hero-dot.active,
 
 @media (max-width: 768px) {
   .manga-hero-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -2974,7 +2974,7 @@ button.mp-hero-dot.active,
 
 @media (max-width: 768px) {
   .book-hero-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -3085,7 +3085,7 @@ button.mp-hero-dot.active,
 
 @media (max-width: 768px) {
   .book-meta-card {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
