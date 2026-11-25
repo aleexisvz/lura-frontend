@@ -445,6 +445,13 @@ select {
 
 /* Topbar on small screens: brand and actions on the first row, nav on a second scrollable row */
 @media (max-width: 768px) {
+  /* The sticky bar would re-blur the page behind it on every scroll frame; a near-opaque background looks the same */
+  .topbar {
+    background: rgba(9, 9, 11, 0.97);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
   .topbar-inner {
     flex-wrap: wrap;
     gap: 0.6rem 0.75rem;
