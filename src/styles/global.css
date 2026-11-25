@@ -2713,6 +2713,14 @@ button.mp-hero-dot.active,
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
 }
 
+/* On phones a full-width cover fills the first screen; keep it smaller and centered */
+@media (max-width: 768px) {
+  .manga-hero-cover {
+    max-width: 220px;
+    margin-inline: auto;
+  }
+}
+
 .manga-hero-content {
   display: grid;
   gap: 0.85rem;
@@ -2985,6 +2993,14 @@ button.mp-hero-dot.active,
   object-fit: cover;
   border: 1px solid var(--border-medium);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+}
+
+/* On phones a full-width cover fills the first screen; keep it smaller and centered */
+@media (max-width: 768px) {
+  .book-hero-cover {
+    max-width: 220px;
+    margin-inline: auto;
+  }
 }
 
 .book-hero-content {
