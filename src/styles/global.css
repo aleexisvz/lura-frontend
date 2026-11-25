@@ -2937,13 +2937,20 @@ button.mp-hero-dot.active,
   background: var(--bg-card);
   color: #ffffff;
   box-shadow: var(--shadow-card);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.volume-poster-card:hover {
-  transform: translateY(-3px);
-  border-color: var(--border-hover);
-  box-shadow: var(--shadow-hover);
+/* Only with a real pointer: on a touchscreen :hover sticks after a touch and repaints the card with
+   the large shadow, which also happens when a scroll starts on top of it. */
+@media (hover: hover) {
+  .volume-poster-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--border-hover);
+    box-shadow: var(--shadow-hover);
+  }
 }
 
 .volume-poster-image {
