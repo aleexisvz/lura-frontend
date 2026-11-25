@@ -2868,6 +2868,18 @@ button.mp-hero-dot.active,
   font-size: 0.82rem;
 }
 
+.volume-load-more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+}
+
+.volume-load-more p {
+  margin: 0;
+}
+
 .volume-poster-grid {
   display: grid;
   gap: 1rem;
