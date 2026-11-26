@@ -537,7 +537,7 @@ export function MangaReaderPage() {
       progressPercent={progressPercent}
       sliderValue={sliderPage}
       isFullscreen={isFullscreen}
-      isBusy={isCoolingDown || saveProgressMutation.isPending}
+      isBusy={isCoolingDown}
       zoom={zoom}
       onZoomChange={(newZoom) => {
         setZoom(newZoom);
