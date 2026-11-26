@@ -19,7 +19,7 @@ Frontend web (SPA) para la plataforma **Lura**, una biblioteca digital y lector 
 ## Requisitos Previos
 
 - Node.js 18+
-- pnpm 11+ o npm
+- pnpm 11+ (`npm install -g pnpm`; Node 25 and later no longer ship corepack)
 - Servidor `lura-backend` en ejecución (por defecto en `http://localhost:3001`)
 
 ---
@@ -41,13 +41,15 @@ Si no se especifica, el cliente asumirá `http://localhost:3001`.
 1. **Instalar dependencias**:
 
 ```bash
-npm install
+pnpm install
 ```
+
+The project uses pnpm and `pnpm-lock.yaml` is the only lockfile.
 
 2. **Iniciar servidor en modo desarrollo**:
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 El frontend estará disponible en `http://localhost:5173`.
@@ -55,14 +57,20 @@ El frontend estará disponible en `http://localhost:5173`.
 3. **Verificar tipado estático**:
 
 ```bash
-npm run typecheck
+pnpm typecheck
 ```
 
 4. **Compilar para producción**:
 
 ```bash
-npm run build
+pnpm build
 ```
+
+---
+
+## Continuous Integration
+
+A GitHub Actions workflow (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `main`. It installs the dependencies with `pnpm install --frozen-lockfile`, then runs `pnpm typecheck` and `pnpm build`. A pull request that breaks the types or the build shows a red check. Run the same two commands locally before opening a pull request.
 
 ---
 
@@ -72,11 +80,11 @@ Lura can be installed as an app on desktop and mobile. `vite-plugin-pwa` generat
 
 - **What is cached:** the app shell (HTML, JS, CSS, icons), CDN images (up to 150 entries for 14 days) and Google Fonts. API requests are never cached, because they carry authenticated, per-user data.
 - **Updates:** the service worker updates itself. A new version is picked up the next time the app is opened after it has been deployed.
-- **Testing locally:** the service worker is only generated in production builds, not in `npm run dev`.
+- **Testing locally:** the service worker is only generated in production builds, not in `pnpm dev`.
 
 ```bash
-npm run build
-npm run preview
+pnpm build
+pnpm preview
 ```
 
 Then open `http://localhost:4173` and check the manifest and service worker in the browser DevTools (Application tab).
