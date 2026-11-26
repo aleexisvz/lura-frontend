@@ -1,4 +1,6 @@
 import { apiClient } from "@/lib/apiClient";
+import { API_BASE_URL } from "@/lib/config";
+import { getToken } from "@/lib/storage";
 import {
   isRecord,
   pickNumber,
@@ -165,6 +167,30 @@ export async function getProgress(mangaId: string): Promise<MangaProgress | null
     completed: source.completed === true,
     volumeCompleted: source.volumeCompleted === true,
   };
+}
+
+// Same request as saveProgress, sent with fetch keepalive so the browser still delivers it while the
+// page is being hidden or closed (apiClient cannot set that flag). Best effort: errors are ignored.
+export function saveProgressKeepalive(payload: {
+  mangaId: string;
+  volumeId: string;
+  pageNumber: number;
+}) {
+  const headers = new Headers({ "Content-Type": "application/json" });
+  const token = getToken();
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  void fetch(`${API_BASE_URL}/manga/${payload.mangaId}/progress`, {
+    method: "POST",
+    credentials: "include",
+    headers,
+    keepalive: true,
+    body: JSON.stringify({ volumeId: payload.volumeId, page: payload.pageNumber }),
+  }).catch(() => {
+    // no-op: best-effort save during page lifecycle events
+  });
 }
 
 export async function saveProgress(payload: {
