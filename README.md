@@ -152,6 +152,7 @@ src/
 - **Protección contra Clics Rápidos (Cooldown)**: Bloqueo suave de navegación rápida para evitar condiciones de carrera o peticiones desordenadas.
 - **Double Click / Double Tap Zoom**: Zooms to 250% on the clicked or tapped point and fits the page back to the screen on the next double click or tap. While zoomed, the page can be dragged with the mouse or a finger. The slider and the +/- buttons keep working as before.
 - **Detección de Inactividad (AFK)**: Pausa automática de la sesión de lectura tras periodos prolongados de inactividad para registrar el tiempo real de lectura.
+- **Progress Saving**: The reading progress is sent once per page rested on, not on every page turn. It goes out at once when a volume is opened or its last page is reached, and otherwise after 5 seconds on the same page. Going back to an earlier page sends nothing, and what is pending is sent when the tab is hidden or the reader is left.
 - **Cierre Fiable de Sesión**: Utiliza `keepalive` en peticiones `fetch` durante el desmontaje del componente o cierre de pestaña para garantizar el registro del tiempo de lectura y otorgamiento de XP.
 
 ### 2. Lector de Libros EPUB
