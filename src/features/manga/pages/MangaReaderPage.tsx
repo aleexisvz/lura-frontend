@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ErrorBox } from "@/components/ErrorBox";
 import { Loading } from "@/components/Loading";
 import {
   getPages,
   getVolumeCompletion,
   markVolumeCompleted,
-  saveProgress
+  saveProgress,
+  saveProgressKeepalive
 } from "@/features/manga/api";
 import {
   endReadingSession,
@@ -19,6 +20,14 @@ import { useReaderHotkeys } from "@/features/reader/hooks/useReaderHotkeys";
 import { useAFKTimer } from "@/features/reader/hooks/useAFKTimer";
 
 const NAVIGATION_INTERVAL_MS = 2000;
+
+// Progress is sent once the reader rests on a page this long, not on every page turn: each save costs
+// the backend several database round trips. Page turns are already limited to one every
+// NAVIGATION_INTERVAL_MS, so the delay has to be longer than that for a burst of turns to become one
+// request. What is pending is sent when the tab is hidden or the reader is left, so nothing is lost.
+const PROGRESS_SAVE_DELAY_MS = 5000;
+
+type ProgressPayload = { mangaId: string; volumeId: string; pageNumber: number };
 
 // Zoom level reached by a double click or double tap, in percent.
 const DOUBLE_TAP_ZOOM = 250;
@@ -112,21 +121,6 @@ export function MangaReaderPage() {
     // start once per opened volume; progress updates are handled separately
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mangaId, volumeId]);
-
-  useEffect(() => {
-    if (!mangaId || !volumeId || currentPage < 1) {
-      return;
-    }
-
-    // Register current volume in active reading list even before page navigation.
-    saveProgressMutation.mutate({
-      mangaId,
-      volumeId,
-      pageNumber: currentPage
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mangaId, volumeId, currentPage]);
-
 
   useEffect(() => {
     sessionIdRef.current = sessionId;
@@ -228,6 +222,110 @@ export function MangaReaderPage() {
     [maxPage, minPage]
   );
 
+  // --- Progress saving: one request per page rested on, forward only, flushed when leaving ---
+
+  const queryClient = useQueryClient();
+  const { mutate: mutateProgress } = saveProgressMutation;
+  const pendingProgressRef = useRef<ProgressPayload | null>(null);
+  const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Highest page already sent for the open volume. The server never moves progress backwards, so going
+  // back to a page sends nothing.
+  const savedProgressRef = useRef<{ volumeKey: string; page: number } | null>(null);
+
+  const flushProgress = useCallback(
+    (mode: "normal" | "leaving" | "keepalive" = "normal") => {
+      if (progressTimerRef.current !== null) {
+        clearTimeout(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+      const pending = pendingProgressRef.current;
+      if (!pending) {
+        return;
+      }
+      pendingProgressRef.current = null;
+
+      if (mode === "keepalive") {
+        saveProgressKeepalive(pending);
+      } else if (mode === "leaving") {
+        // The reader is being left and the screens that show progress will ask for it right away,
+        // so refresh them once the save has landed.
+        void saveProgress(pending)
+          .then(() => {
+            void queryClient.invalidateQueries({ queryKey: ["manga-progress", pending.mangaId] });
+            void queryClient.invalidateQueries({ queryKey: ["continue-reading"] });
+          })
+          .catch(() => {
+            // Best effort: progress is saved again on the next visit.
+          });
+      } else {
+        mutateProgress(pending);
+      }
+    },
+    [mutateProgress, queryClient]
+  );
+
+  const queueProgress = useCallback(
+    (payload: ProgressPayload, immediately: boolean) => {
+      pendingProgressRef.current = payload;
+      if (progressTimerRef.current !== null) {
+        clearTimeout(progressTimerRef.current);
+      }
+      if (immediately) {
+        flushProgress();
+        return;
+      }
+      progressTimerRef.current = setTimeout(() => flushProgress(), PROGRESS_SAVE_DELAY_MS);
+    },
+    [flushProgress]
+  );
+
+  useEffect(() => {
+    if (!mangaId || !volumeId || currentPage < 1) {
+      return;
+    }
+
+    const volumeKey = `${mangaId}-${volumeId}`;
+    const saved = savedProgressRef.current;
+
+    if (!saved || saved.volumeKey !== volumeKey) {
+      // First page seen in this volume: register it at once so the volume shows up in the active
+      // reading list. Anything still pending belongs to the previous volume.
+      flushProgress();
+      savedProgressRef.current = { volumeKey, page: currentPage };
+      queueProgress({ mangaId, volumeId, pageNumber: currentPage }, true);
+      return;
+    }
+
+    if (currentPage <= saved.page) {
+      return;
+    }
+
+    saved.page = currentPage;
+    // Reaching the end is sent at once, it decides whether the volume counts as completed.
+    const reachedEnd = Boolean(pagesQuery.data) && currentPage >= maxPage;
+    queueProgress({ mangaId, volumeId, pageNumber: currentPage }, reachedEnd);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mangaId, volumeId, currentPage]);
+
+  useEffect(() => {
+    // A phone can kill a tab that went to the background, so send what is pending as it hides.
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        flushProgress("keepalive");
+      }
+    };
+    const onPageHide = () => flushProgress("keepalive");
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pagehide", onPageHide);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", onPageHide);
+      flushProgress("leaving");
+    };
+  }, [flushProgress]);
+
   const runGoToPage = useCallback(
     (nextPage: number) => {
       const safeNextPage = clampPage(nextPage);
@@ -235,11 +333,7 @@ export function MangaReaderPage() {
         return;
       }
 
-      saveProgressMutation.mutate({
-        mangaId,
-        volumeId,
-        pageNumber: safeNextPage
-      });
+      // The progress itself is saved by the effect that follows the page in the URL.
       if (safeNextPage >= maxPage && !completionQuery.data?.completed) {
         markCompletedMutation.mutate();
       }
@@ -253,7 +347,6 @@ export function MangaReaderPage() {
       markCompletedMutation,
       maxPage,
       navigate,
-      saveProgressMutation,
       volumeId
     ]
   );
