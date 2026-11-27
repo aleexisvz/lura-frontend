@@ -21,13 +21,14 @@ export function useReaderHotkeys(options: ReaderHotkeysOptions) {
         return;
       }
 
-      if (event.key === "ArrowRight") {
+      // Manga is read from right to left, so the left arrow goes forward, like a tap on the left side.
+      if (event.key === "ArrowLeft") {
         event.preventDefault();
         onNext();
         return;
       }
 
-      if (event.key === "ArrowLeft") {
+      if (event.key === "ArrowRight") {
         event.preventDefault();
         onPrev();
         return;
