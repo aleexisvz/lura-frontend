@@ -88,13 +88,14 @@ export function ReaderShell(props: ReaderShellProps) {
       <div className="reader-viewport">{children}</div>
 
       <footer className="reader-bottombar">
+        {/* Manga is read from right to left: the left button goes forward, the right one goes back. */}
         <button
           type="button"
           className="reader-nav-button"
-          onClick={onPrev}
-          disabled={safeCurrent <= minPage || isBusy}
-          aria-label="Página anterior"
-          title="Página anterior"
+          onClick={onNext}
+          disabled={safeCurrent >= maxPage || isBusy}
+          aria-label="Página siguiente"
+          title="Página siguiente"
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
@@ -117,10 +118,10 @@ export function ReaderShell(props: ReaderShellProps) {
         <button
           type="button"
           className="reader-nav-button"
-          onClick={onNext}
-          disabled={safeCurrent >= maxPage || isBusy}
-          aria-label="Página siguiente"
-          title="Página siguiente"
+          onClick={onPrev}
+          disabled={safeCurrent <= minPage || isBusy}
+          aria-label="Página anterior"
+          title="Página anterior"
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
