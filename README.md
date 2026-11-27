@@ -157,7 +157,8 @@ src/
 
 ### 1. Lector de Manga
 - **Precarga Inteligente**: Precarga en segundo plano 3 páginas hacia adelante y 1 hacia atrás mediante elementos `<img>` ocultos para transiciones instantáneas sin esperas de red.
-- **Protección contra Clics Rápidos (Cooldown)**: Bloqueo suave de navegación rápida para evitar condiciones de carrera o peticiones desordenadas.
+- **Protección contra Clics Rápidos (Cooldown)**: Bloqueo suave de 400 ms entre cambios de página para evitar condiciones de carrera o peticiones desordenadas. No limita el XP, que depende del tiempo de lectura y se calcula en el servidor.
+- **Touch Page Turning**: On touch screens, tap the left side of the page (the left 35%) or swipe from left to right to go to the next page, as in manga (right to left reading). Tap the right side or swipe from right to left to go back. Taps in the middle do nothing. A single tap waits about 300 ms so a double tap can still zoom. While the page is zoomed, dragging moves the page and taps or swipes do not turn it. The mouse keeps the buttons, the slider and the keyboard.
 - **Double Click / Double Tap Zoom**: Zooms to 250% on the clicked or tapped point and fits the page back to the screen on the next double click or tap. While zoomed, the page can be dragged with the mouse or a finger. The slider and the +/- buttons keep working as before.
 - **Detección de Inactividad (AFK)**: Pausa automática de la sesión de lectura tras periodos prolongados de inactividad para registrar el tiempo real de lectura.
 - **Progress Saving**: The reading progress is sent once per page rested on, not on every page turn. It goes out at once when a volume is opened or its last page is reached, and otherwise after 5 seconds on the same page. Going back to an earlier page sends nothing, and what is pending is sent when the tab is hidden or the reader is left.
