@@ -22,6 +22,40 @@ export class ApiError extends Error {
   }
 }
 
+// How long a request may take, response body included, before it is abandoned.
+const REQUEST_TIMEOUT_MS = 15000;
+
+function withTimeout(signal?: AbortSignal | null): AbortSignal {
+  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  return signal ? AbortSignal.any([signal, timeout]) : timeout;
+}
+
+// Turns the errors fetch throws (no answer in time, no connection) into an ApiError that screens can
+// show. Anything else, such as an abort the caller asked for, is passed through untouched.
+function toRequestError(error: unknown): unknown {
+  if (error instanceof DOMException && error.name === "TimeoutError") {
+    return new ApiError(
+      {
+        code: "TIMEOUT",
+        message: "El servidor tardó demasiado en responder. Intenta de nuevo.",
+        details: null
+      },
+      0
+    );
+  }
+  if (error instanceof TypeError) {
+    return new ApiError(
+      {
+        code: "NETWORK_ERROR",
+        message: "No se pudo conectar con el servidor. Revisa tu conexión.",
+        details: null
+      },
+      0
+    );
+  }
+  return error;
+}
+
 class ApiClient {
   private unauthorizedHandler: UnauthorizedHandler | null = null;
 
@@ -79,16 +113,26 @@ class ApiClient {
       finalHeaders.set("Content-Type", "application/json");
     }
 
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-      ...rest,
-      credentials: "include",
-      headers: finalHeaders,
-      body: body
-        ? isFormData
-          ? body
-          : JSON.stringify(body)
-        : undefined
-    });
+    // A request that never answers would leave its screen loading forever, so give up after a while.
+    // Uploads are exempt: a big file on a slow connection can legitimately take longer.
+    const signal = isFormData ? rest.signal : withTimeout(rest.signal);
+
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE_URL}${path}`, {
+        ...rest,
+        signal,
+        credentials: "include",
+        headers: finalHeaders,
+        body: body
+          ? isFormData
+            ? body
+            : JSON.stringify(body)
+          : undefined
+      });
+    } catch (error) {
+      throw toRequestError(error);
+    }
 
     // Notify auth context on 401 to clear local session and trigger login redirect
     if (response.status === 401 && this.unauthorizedHandler) {
