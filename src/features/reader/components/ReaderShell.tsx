@@ -178,7 +178,8 @@ export function ReaderShell(props: ReaderShellProps) {
           <div className="reader-info-modal">
             <h2>Atajos y Navegación</h2>
             <ul>
-              <li>Flechas o Espacio: avanzar / retroceder página</li>
+              <li>Flecha izquierda o Espacio: página siguiente. Flecha derecha: página anterior (lectura de derecha a izquierda)</li>
+              <li>En pantalla táctil: tocar el lado izquierdo o deslizar hacia la derecha avanza; tocar el lado derecho o deslizar hacia la izquierda retrocede</li>
               <li>Doble clic o doble toque: acercar al punto tocado y volver al ajuste de pantalla</li>
               <li>Arrastrar con el mouse o el dedo: desplazar la vista en zoom</li>
               <li>F: entrar / salir de pantalla completa</li>
