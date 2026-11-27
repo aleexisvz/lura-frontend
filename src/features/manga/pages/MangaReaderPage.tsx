@@ -19,12 +19,13 @@ import { ReaderShell } from "@/features/reader/components/ReaderShell";
 import { useReaderHotkeys } from "@/features/reader/hooks/useReaderHotkeys";
 import { useAFKTimer } from "@/features/reader/hooks/useAFKTimer";
 
-const NAVIGATION_INTERVAL_MS = 2000;
+// Minimum time between two page turns. It only keeps a burst of taps or clicks from flooding the reader:
+// XP comes from reading time on the server, so turning pages quickly earns nothing extra.
+const NAVIGATION_INTERVAL_MS = 400;
 
 // Progress is sent once the reader rests on a page this long, not on every page turn: each save costs
-// the backend several database round trips. Page turns are already limited to one every
-// NAVIGATION_INTERVAL_MS, so the delay has to be longer than that for a burst of turns to become one
-// request. What is pending is sent when the tab is hidden or the reader is left, so nothing is lost.
+// the backend several database round trips. Every turn restarts the wait, so a burst of turns becomes
+// one request. What is pending is sent when the tab is hidden or the reader is left, so nothing is lost.
 const PROGRESS_SAVE_DELAY_MS = 5000;
 
 type ProgressPayload = { mangaId: string; volumeId: string; pageNumber: number };
@@ -36,6 +37,12 @@ const DOUBLE_TAP_DISTANCE_PX = 30;
 // A touch that moves more than this is a drag, not a tap.
 const TAP_MOVE_TOLERANCE_PX = 10;
 const TOUCH_DBLCLICK_GUARD_MS = 500;
+// Touch page turning follows the manga reading direction (right to left): a tap on the left side of
+// the page, or a swipe from left to right, goes to the next page. Taps in the middle do nothing.
+const TAP_ZONE_RATIO = 0.35;
+const SWIPE_MIN_DISTANCE_PX = 50;
+// A swipe has to be clearly horizontal: its width must exceed its height by this factor.
+const SWIPE_HORIZONTAL_FACTOR = 1.5;
 
 export function MangaReaderPage() {
   const navigate = useNavigate();
@@ -446,6 +453,53 @@ export function MangaReaderPage() {
     setPan(clampPan({ x: offsetX * factor, y: offsetY * factor }, DOUBLE_TAP_ZOOM));
   };
 
+  // The latest turn handlers, so a tap that waits for a possible double tap never calls stale ones.
+  const turnRef = useRef({ next: goNext, prev: goPrev });
+  turnRef.current = { next: goNext, prev: goPrev };
+  const pendingTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelPendingTap = useCallback(() => {
+    if (pendingTapTimerRef.current !== null) {
+      clearTimeout(pendingTapTimerRef.current);
+      pendingTapTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => cancelPendingTap, [cancelPendingTap]);
+  useEffect(() => {
+    cancelPendingTap();
+  }, [currentPage, cancelPendingTap]);
+
+  // A single tap turns the page after the double tap window has passed, so a double tap can still zoom
+  // without turning pages first.
+  const scheduleTapTurn = (stage: HTMLElement, clientX: number) => {
+    const rect = stage.getBoundingClientRect();
+    const ratio = (clientX - rect.left) / rect.width;
+    const turn =
+      ratio < TAP_ZONE_RATIO
+        ? () => turnRef.current.next()
+        : ratio > 1 - TAP_ZONE_RATIO
+          ? () => turnRef.current.prev()
+          : null;
+    if (!turn) return;
+    cancelPendingTap();
+    pendingTapTimerRef.current = setTimeout(() => {
+      pendingTapTimerRef.current = null;
+      turn();
+    }, DOUBLE_TAP_MS);
+  };
+
+  const handleSwipe = (dx: number, dy: number) => {
+    if (Math.abs(dx) < SWIPE_MIN_DISTANCE_PX || Math.abs(dx) < Math.abs(dy) * SWIPE_HORIZONTAL_FACTOR) {
+      return;
+    }
+    if (dx > 0) {
+      goNext();
+    } else {
+      goPrev();
+    }
+  };
+
   const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     // Touch double taps are handled on pointer up; ignore the synthetic dblclick that may follow.
     if (Date.now() - lastTouchTimeRef.current < TOUCH_DBLCLICK_GUARD_MS) return;
@@ -500,6 +554,11 @@ export function MangaReaderPage() {
     const isTap = down !== null && Math.hypot(e.clientX - down.x, e.clientY - down.y) <= TAP_MOVE_TOLERANCE_PX;
     if (!isTap) {
       lastTapRef.current = null;
+      cancelPendingTap();
+      // While zoomed, a drag moves the page instead of turning it.
+      if (down !== null && zoom <= 100) {
+        handleSwipe(e.clientX - down.x, e.clientY - down.y);
+      }
       return;
     }
 
@@ -510,9 +569,13 @@ export function MangaReaderPage() {
       Math.hypot(e.clientX - last.x, e.clientY - last.y) <= DOUBLE_TAP_DISTANCE_PX;
     if (isDoubleTap) {
       lastTapRef.current = null;
+      cancelPendingTap();
       toggleZoomAt(e.currentTarget, e.clientX, e.clientY);
     } else {
       lastTapRef.current = { time: e.timeStamp, x: e.clientX, y: e.clientY };
+      if (zoom <= 100) {
+        scheduleTapTurn(e.currentTarget, e.clientX);
+      }
     }
   };
 
@@ -520,6 +583,7 @@ export function MangaReaderPage() {
     setIsDragging(false);
     pointerDownRef.current = null;
     lastTapRef.current = null;
+    cancelPendingTap();
   };
 
   const handleResetZoom = useCallback(() => {
