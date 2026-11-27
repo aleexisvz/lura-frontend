@@ -17,6 +17,7 @@ This repository is the **frontend SPA**.
 - Each feature contains: `pages/`, `components/`, `api.ts`, `hooks/`.
 - Shared components live in `src/components/`.
 - API calls go through `src/lib/apiClient.ts`. Never use raw `fetch` directly.
+- `apiClient` gives up on a request after 15 seconds (uploads are exempt) and throws an `ApiError` with code `TIMEOUT`; a lost connection becomes `NETWORK_ERROR`. TanStack Query does not retry a timeout. Show load errors with `<ErrorBox error={...} onRetry={...} />` so the user can try again.
 
 ## Server State
 - Use `useQuery` for all data fetching and `useMutation` for all mutations.
