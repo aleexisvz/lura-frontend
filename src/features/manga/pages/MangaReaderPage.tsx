@@ -630,7 +630,9 @@ export function MangaReaderPage() {
       }}
     >
       {pagesQuery.isLoading && <Loading text="Cargando páginas..." />}
-      {pagesQuery.isError && <ErrorBox error={pagesQuery.error} />}
+      {pagesQuery.isError && (
+        <ErrorBox error={pagesQuery.error} onRetry={() => void pagesQuery.refetch()} />
+      )}
 
       <div
         className="reader-stage"
